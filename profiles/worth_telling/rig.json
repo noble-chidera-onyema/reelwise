@@ -1,0 +1,8 @@
+{
+  "background": "set_rooftop.png",
+  "hosts": {
+    "Ren":  {"closed": "ren_closed.png",  "open": "ren_open.png",  "blink": "ren_blink.png",  "x": 0.285, "y": 0.93, "height": 0.275},
+    "Bex":  {"closed": "bex_closed.png",  "open": "bex_open.png",  "blink": "bex_blink.png",  "x": 0.50, "y": 0.93, "height": 0.275},
+    "Ozzy": {"closed": "ozzy_closed.png", "open": "ozzy_open.png", "blink": "ozzy_blink.png", "x": 0.715, "y": 0.93, "height": 0.275}
+  }
+}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reelwise"
+version = "0.1.0"
+description = "Measure short-form video scene by scene, find a channel's overperformers, and turn a reference format into an episode for your own characters."
+requires-python = ">=3.10"
+authors = [{ name = "Noble Chidera Onyema", email = "onyemanoble1628@gmail.com" }]
+license = { text = "All Rights Reserved" }
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.1",
+  "opencv-python-headless>=4.9",
+  "requests>=2.31",
+  "youtube-transcript-api>=1.0",
+  "edge-tts>=7.0",
+  "kokoro-onnx>=0.4",
+  "soundfile>=0.12",
+  "gradio_client>=1.0",
+]
+
+[project.optional-dependencies]
+app = ["streamlit>=1.45", "plotly>=5.20"]
+dev = ["pytest>=8", "scenedetect>=0.6"]
+paid = ["anthropic>=0.40", "fal-client>=1.0"]
+clone = ["chatterbox-tts>=0.1"]
+
+[project.scripts]
+reelwise = "reelwise.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

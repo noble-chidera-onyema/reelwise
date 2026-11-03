@@ -1,0 +1,55 @@
+{
+  "channel": "Example channel",
+  "orientation": "vertical",
+  "target_duration_s": [
+    30,
+    45
+  ],
+  "gap_between_lines_s": [
+    0.15,
+    0.25
+  ],
+  "end_card_s": 2,
+  "end_card_text": "FOLLOW for more",
+  "min_words_per_line": 4,
+  "spell_out_numbers": true,
+  "first_line": {
+    "speaker": "Host",
+    "start_s": 0.3,
+    "max_start_s": 0.5,
+    "must_be_question": true
+  },
+  "characters": [
+    {
+      "name": "Host",
+      "role": "asks the opening question and drives the story",
+      "words_per_second": 3.2,
+      "max_words_per_line": 22,
+      "caption_colour": "#F2801E",
+      "voice": {
+        "engine": "kokoro",
+        "voice": "bm_george",
+        "speed": 1.0,
+        "lang": "en-gb"
+      }
+    },
+    {
+      "name": "Sidekick",
+      "role": "reacts and adds the backstory",
+      "words_per_second": 3.0,
+      "max_words_per_line": 22,
+      "caption_colour": "#14A5A0",
+      "voice": {
+        "engine": "kokoro",
+        "voice": "bm_daniel",
+        "speed": 1.0,
+        "lang": "en-gb"
+      }
+    }
+  ],
+  "style_rules": [
+    "Open on the most dramatic moment of the story, not the background.",
+    "Every line is a full natural sentence."
+  ],
+  "caption_font": "Arial Black"
+}

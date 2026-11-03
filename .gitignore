@@ -1,0 +1,28 @@
+# secrets
+.env
+
+# environments and caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# generated data and outputs (regenerate with eval/synth.py)
+data/synth_*/
+data/samples/*
+!data/samples/.gitkeep
+outputs/
+
+
+# media
+*.mp4
+*.mov
+*.webm
+*.mkv
+
+# Studio projects stay local
+projects/
+voice_check/
+/.local/

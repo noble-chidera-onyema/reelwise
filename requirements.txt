@@ -1,0 +1,14 @@
+numpy>=1.26
+pandas>=2.1
+opencv-python-headless>=4.9
+requests>=2.31
+youtube-transcript-api>=1.0
+streamlit>=1.45
+plotly>=5.20
+kokoro-onnx>=0.4
+soundfile>=0.12
+edge-tts>=7.0
+gradio_client>=1.0
+# Optional, paid services only. Nothing in the free pipeline needs these.
+anthropic>=0.40
+fal-client>=1.0

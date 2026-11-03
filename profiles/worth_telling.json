@@ -1,0 +1,122 @@
+{
+  "channel": "Worth Telling (@watchworthtelling)",
+  "orientation": "vertical",
+  "target_duration_s": [
+    30,
+    45
+  ],
+  "gap_between_lines_s": [
+    0.14,
+    0.26
+  ],
+  "end_card_s": 2,
+  "end_card_text": "FOLLOW for more true stories @watchworthtelling",
+  "min_words_per_line": 4,
+  "spell_out_numbers": true,
+  "first_line": {
+    "speaker": "Bex",
+    "start_s": 0.3,
+    "max_start_s": 0.35,
+    "must_be_question": true
+  },
+  "characters": [
+    {
+      "name": "Bex",
+      "role": "viewer's voice: quicker, surprised; hook question, the audience's question, the share line",
+      "voice_speed": 1.05,
+      "words_per_second": 3.4,
+      "max_words_per_line": 24,
+      "caption_colour": "#14A5A0",
+      "voice": {
+        "engine": "edge",
+        "voice": "en-GB-ThomasNeural",
+        "rate": "+12%",
+        "pitch": "-3Hz"
+      },
+      "max_lines": 3,
+      "voice_kokoro": {
+        "engine": "kokoro",
+        "voice": "bm_daniel",
+        "speed": 1.05,
+        "lang": "en-gb"
+      }
+    },
+    {
+      "name": "Ren",
+      "role": "storyteller: calm, steady, carries the facts from start to finish; closes every episode",
+      "voice_speed": 1.08,
+      "words_per_second": 2.9,
+      "max_words_per_line": 24,
+      "caption_colour": "#F2801E",
+      "voice": {
+        "engine": "edge",
+        "voice": "en-US-AndrewMultilingualNeural",
+        "rate": "-4%",
+        "pitch": "+0Hz"
+      },
+      "voice_kokoro": {
+        "engine": "kokoro",
+        "voice": "bm_george",
+        "speed": 1.0,
+        "lang": "en-gb"
+      }
+    },
+    {
+      "name": "Ozzy",
+      "role": "joker: at most one short funny line per video",
+      "voice_speed": 1.0,
+      "words_per_second": 3.0,
+      "max_lines": 1,
+      "max_words_per_line": 10,
+      "caption_colour": "#F7C42B",
+      "voice": {
+        "engine": "edge",
+        "voice": "en-IE-ConnorNeural",
+        "rate": "+15%",
+        "pitch": "+5Hz"
+      },
+      "voice_kokoro": {
+        "engine": "kokoro",
+        "voice": "am_puck",
+        "speed": 1.0,
+        "lang": "en-us"
+      }
+    }
+  ],
+  "style_rules": [
+    "Ren is the storyteller: calm and steady, he carries the facts and tells the story from start to finish, with the dates, names and twists.",
+    "Ren always closes with: And that's one worth telling.",
+    "Bex is the viewer's voice: quicker and surprised. He opens with the hook question, asks what the audience is thinking, and gives the share line (Send this to the friend who...). At most three lines.",
+    "Ozzy is the joker: at most one short funny line per video, and only where it does not slow the story.",
+    "The episode opens inside the TV on the most dramatic shot, then pulls back to the hosts.",
+    "First frame is the most dramatic image with a big yellow stamp.",
+    "Backstory only after the hook. No slow scene-setting opener.",
+    "Questions must read as questions so the voice rises at the end.",
+    "Spell hard names phonetically for the voice; captions keep the real spelling."
+  ],
+  "caption_font": "Arial Black",
+  "caption_size": 0.048,
+  "caption_y_story": 0.64,
+  "caption_y_host": 0.17,
+  "lead_narrator": "Ren",
+  "lead_share_min": 0.6,
+  "sign_off": {
+    "speaker": "Ren",
+    "text": "And that's one worth telling."
+  },
+  "voice_candidates": {
+    "Ren": [
+      "en-US-AndrewMultilingualNeural",
+      "en-US-BrianMultilingualNeural",
+      "en-US-ChristopherNeural",
+      "en-GB-RyanNeural",
+      "en-AU-WilliamNeural"
+    ],
+    "Bex": [
+      "en-GB-ThomasNeural"
+    ],
+    "Ozzy": [
+      "en-IE-ConnorNeural"
+    ]
+  }
+}

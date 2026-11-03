@@ -1,0 +1,47 @@
+{
+  "reelwise": {
+    "videos": 20,
+    "true_boundaries": 274,
+    "precision": 0.941,
+    "recall": 0.993,
+    "f1": 0.966,
+    "cut_recall": 0.995,
+    "gradual_recall": 0.985,
+    "similar_palette_recall": 0.969,
+    "false_positives": 17,
+    "cuts": 209,
+    "graduals": 65,
+    "similar_palette": 64,
+    "mean_cut_timing_error_frames": 0.0
+  },
+  "pyscenedetect_content": {
+    "videos": 20,
+    "true_boundaries": 274,
+    "precision": 0.86,
+    "recall": 0.872,
+    "f1": 0.866,
+    "cut_recall": 0.923,
+    "gradual_recall": 0.708,
+    "similar_palette_recall": 0.906,
+    "false_positives": 39,
+    "cuts": 209,
+    "graduals": 65,
+    "similar_palette": 64,
+    "mean_cut_timing_error_frames": 0.0
+  },
+  "pyscenedetect_adaptive": {
+    "videos": 20,
+    "true_boundaries": 274,
+    "precision": 0.842,
+    "recall": 0.854,
+    "f1": 0.848,
+    "cut_recall": 0.976,
+    "gradual_recall": 0.462,
+    "similar_palette_recall": 0.875,
+    "false_positives": 44,
+    "cuts": 209,
+    "graduals": 65,
+    "similar_palette": 64,
+    "mean_cut_timing_error_frames": 0.0
+  }
+}
