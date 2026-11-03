@@ -150,3 +150,68 @@ def test_hf_falls_back_when_space_fails(tmp_path, monkeypatch):
     meta = prov.generate(job, plan, tmp_path / "c.mp4")
     assert meta["provider"] == "motion" and "quota" in meta["hf_note"]
     assert (tmp_path / "c.mp4").exists()
+
+
+def test_rushed_line_is_voiced_again_slower(tmp_path):
+    from reelwise.studio import plan as P
+    from reelwise.studio.voices import MockEngine, time_plan
+
+    class Rate(MockEngine):
+        """Speaks at 6 words a second unless slowed."""
+        def __init__(self, wps=6.0):
+            super().__init__(wps)
+
+        def slowed(self, factor):
+            return Rate(self.wps / factor)
+
+    prof = json.loads((ROOT / "profiles" / "worth_telling.json").read_text())
+    segs = P.parse_scene_text("SCENE 1\nAction: x\nRen: And that's one worth telling, my friends.", ["Ren", "Bex", "Ozzy"])
+    plan = P.new_plan(segs, prof, [{"id": 1, "path": "x"}], [])
+    time_plan(plan, {"Ren": Rate()}, tmp_path)
+    ln = plan["segments"][0]["lines"][0]
+    assert ln.get("slowed") is True
+    assert len(ln["text"].split()) / ln["duration_s"] <= 3.8 + 1e-6
+
+
+def test_captions_drawn_inside_safe_area(tmp_path):
+    from reelwise.studio.captions import CaptionRenderer
+    prof = json.loads((ROOT / "profiles" / "worth_telling.json").read_text())
+    tl = {"W": 1080, "H": 1920, "segments": [
+        {"kind": "cold_open", "t0": 0.0, "t1": 2.0, "stamp": "A dozen cans of pepper spray on one man",
+         "lines": [{"speaker": "Bex", "text": "Wait, they did what?", "t0": 0.3, "t1": 1.5,
+                    "words": [{"w": "Wait,", "t0": 0.3, "t1": 0.6}, {"w": "they", "t0": 0.6, "t1": 0.8},
+                              {"w": "did", "t0": 0.8, "t1": 1.0}, {"w": "what?", "t0": 1.0, "t1": 1.5}]}]},
+        {"kind": "end_card", "t0": 2.0, "t1": 4.0, "stamp": "", "lines": []}]}
+    cr = CaptionRenderer(tl, prof)
+    assert cr.report and all(r["fits"] for r in cr.report)
+    assert {r["kind"] for r in cr.report} == {"caption", "stamp", "end_card"}
+    frame = np.zeros((1920, 1080, 3), np.uint8)
+    out = cr.draw(frame.copy(), 0.5)
+    yellow = (out[..., 2] > 200) & (out[..., 1] > 170) & (out[..., 0] < 60)      # stamp
+    teal = (out[..., 1] > 130) & (out[..., 0] > 130) & (out[..., 2] < 60)        # Bex's caption
+    assert yellow.sum() > 2000 and teal.sum() > 500
+    cols = np.flatnonzero(out.any(axis=(0, 2)))
+    assert cols.min() >= 0.08 * 1080 - 40 and cols.max() <= 0.82 * 1080 + 40
+
+
+def test_landscape_panel_stays_whole_in_every_move(tmp_path):
+    """A label 5% in from the panel edge must stay in frame whatever the camera does."""
+    pytest.importorskip("cv2")
+    if not (CACHE / "midas" / "model-small.onnx").exists():
+        pytest.skip("depth model not downloaded")
+    from reelwise.studio.motion import MOVES, ParallaxRenderer
+    img = np.full((600, 1000, 3), 200, np.uint8)
+    img[30:70, 50:170] = (0, 0, 255)          # red label, top left, 5% in
+    img[530:570, 830:950] = (255, 0, 0)       # blue figure, bottom right, 5% in
+    f = tmp_path / "panel.png"
+    cv2.imwrite(str(f), img)
+    r = ParallaxRenderer(str(f), 540, 960)
+    assert r.fit is not None
+    for mv in MOVES:
+        for u in (0.0, 0.5, 1.0):
+            fr = r.frame(mv, u, u * 3)
+            red = (fr[..., 2] > 180) & (fr[..., 0] < 80) & (fr[..., 1] < 80)
+            blue = (fr[..., 0] > 180) & (fr[..., 2] < 80) & (fr[..., 1] < 80)
+            # each marker is 120x40 px in a 1000 px wide source shown at 540 px: about 64x21
+            assert red.sum() > 0.8 * 64 * 21, (mv, u, "label cut")
+            assert blue.sum() > 0.8 * 64 * 21, (mv, u, "figure cut")

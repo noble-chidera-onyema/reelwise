@@ -108,6 +108,10 @@ class Engine:
     def speak(self, text: str, out: Path) -> Spoken:
         raise NotImplementedError
 
+    def slowed(self, factor: float) -> "Engine | None":
+        """The same voice spoken `factor` times slower, or None if the engine cannot."""
+        return None
+
 
 class EdgeEngine(Engine):
     name = "edge"
@@ -117,6 +121,11 @@ class EdgeEngine(Engine):
 
     def config(self):
         return {"voice": self.voice, "rate": self.rate, "pitch": self.pitch, "volume": self.volume}
+
+    def slowed(self, factor: float) -> "EdgeEngine":
+        r = int(str(self.rate).strip().rstrip("%") or 0)
+        new = round(((1 + r / 100) / factor - 1) * 100)
+        return EdgeEngine(self.voice, f"{new:+d}%", self.pitch, self.volume)
 
     def speak(self, text: str, out: Path) -> Spoken:
         import edge_tts
@@ -373,6 +382,9 @@ class KokoroEngine(Engine):
     def config(self):
         return {"voice": self.voice, "speed": self.speed, "lang": self.lang}
 
+    def slowed(self, factor: float) -> "KokoroEngine":
+        return KokoroEngine(self.voice, round(self.speed / factor, 3), self.lang)
+
     @classmethod
     def model(cls, progress=None):
         if cls._model is None:
@@ -453,6 +465,14 @@ def engine_from_config(cfg: dict) -> Engine:
 
 # --------------------------------------------------------------------------- timing the plan
 
+def max_wps(profile: dict, speaker: str) -> float:
+    """Fastest natural pace for a host, words per second. Above it a line sounds rushed."""
+    for c in profile.get("characters", []):
+        if c["name"] == speaker and c.get("max_words_per_second"):
+            return float(c["max_words_per_second"])
+    return float(profile.get("max_words_per_second", 3.8))
+
+
 def time_plan(plan: dict, engines: dict[str, Engine], audio_dir: str | Path,
               zoom_s: float = 1.0, min_story_s: float = 1.5) -> dict:
     """Voice every line, then set each segment's length from its narration.
@@ -493,6 +513,26 @@ def time_plan(plan: dict, engines: dict[str, Engine], audio_dir: str | Path,
                 else:
                     sp.words = align_by_pauses(read_wav(sp.path), ln["text"]) if sp.duration_s else []
                 meta.write_text(json.dumps(sp.__dict__))
+            # A line spoken faster than a natural pace is voiced again, slower.
+            n_words = len(ln["text"].split())
+            limit = max_wps(prof, ln["speaker"])
+            if sp.duration_s and n_words / sp.duration_s > limit:
+                slow = eng.slowed(n_words / sp.duration_s / limit * 1.04)
+                if slow is not None:
+                    out2 = audio_dir / f"{ln['id']}_{slow.key(ln['say'])}.wav"
+                    meta2 = out2.with_suffix(".json")
+                    if out2.exists() and meta2.exists():
+                        sp = Spoken(**json.loads(meta2.read_text()))
+                    else:
+                        sp = slow.speak(ln["say"], out2)
+                        cap = ln["text"].split()
+                        if len(cap) == len(sp.words):
+                            for w, c in zip(sp.words, cap):
+                                w["w"] = c
+                        else:
+                            sp.words = align_by_pauses(read_wav(sp.path), ln["text"]) if sp.duration_s else []
+                        meta2.write_text(json.dumps(sp.__dict__))
+                    ln["slowed"] = True
             ln["audio"] = sp.path
             ln["start_s"] = round(t, 3)
             ln["duration_s"] = sp.duration_s

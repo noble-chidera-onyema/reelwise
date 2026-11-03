@@ -235,6 +235,11 @@ def final_checks(final_path: str, plan: dict, timeline: dict, consistency: dict 
             silent.append(f"{l['speaker']} at {l['t0']:.1f}s")
     out.append(check("every line audible", not silent,
                      f"silent: {', '.join(silent)}" if silent else f"all {len(lines)} lines heard in the final mix"))
+    from .voices import max_wps
+    rushed = [f"{l['speaker']} at {l['t0']:.1f}s ({len(l['text'].split()) / max(l['t1'] - l['t0'], 0.01):.1f} words/s)"
+              for l in lines if len(l["text"].split()) / max(l["t1"] - l["t0"], 0.01) > max_wps(prof, l["speaker"]) + 0.3]
+    out.append(check("no rushed lines", not rushed, "rushed: " + ", ".join(rushed) if rushed
+                     else "every line at a natural pace"))
     lu = loudness(final_path)
     if lu["integrated_lufs"] is not None:
         out.append(check("loudness -14 LUFS", abs(lu["integrated_lufs"] + 14) <= 1.0,

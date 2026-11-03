@@ -24,6 +24,9 @@ import numpy as np
 
 from .voices import CACHE, fetch
 
+# Bump when the look of a motion clip changes, so cached clips are rendered again.
+MOTION_VERSION = 2
+
 MIDAS_URL = "https://github.com/isl-org/MiDaS/releases/download/v2_1/model-small.onnx"
 _net = None
 
@@ -51,6 +54,12 @@ def _cover(img, w, h):
     r = cv2.resize(img, (int(np.ceil(iw * s)), int(np.ceil(ih * s))), interpolation=cv2.INTER_AREA if s < 1 else cv2.INTER_CUBIC)
     y0, x0 = (r.shape[0] - h) // 2, (r.shape[1] - w) // 2
     return r[y0:y0 + h, x0:x0 + w]
+
+
+def is_panel(image_path: str, out_w: int, out_h: int) -> bool:
+    """True when the image is landscape enough to be shown whole (fit mode)."""
+    img = cv2.imread(image_path)
+    return img is not None and (img.shape[1] / img.shape[0]) / (out_w / out_h) > 1.25
 
 
 def subject_point(d: np.ndarray) -> tuple[float, float]:
@@ -115,11 +124,15 @@ class ParallaxRenderer:
             self.fit = ((bg.astype(np.float32) * 0.5).astype(np.uint8), (out_h - inner_h) // 2)
             out_h = inner_h
         self.ow, self.oh = out_w, out_h
-        self.m = 1.12 if self.fit is not None else 1.3   # canvas margin for camera moves
+        # Canvas margin for camera moves. Panels keep almost all of the picture: their labels,
+        # numbers and figures sit right at the edges.
+        self.m = 1.02 if self.fit is not None else 1.3
         # How far we can zoom before upscaled blur shows: total magnification of the source
         # stays at or under 2.4x, and anything above 1.5x gets a light unsharp mask.
         self.cover = max(out_w * self.m / img.shape[1], out_h * self.m / img.shape[0])
         self.zmax = max(1.05, 2.4 / self.cover)
+        if self.fit is not None:
+            self.zmax = min(self.zmax, 1.03)   # panels carry their own composition and text: stay wide
         # Work canvas at output aspect, 30% larger so moves never run off the edge.
         self.W, self.H = int(out_w * self.m * oversample), int(out_h * self.m * oversample)
         self.img = _cover(img, self.W, self.H)
@@ -133,6 +146,10 @@ class ParallaxRenderer:
         z, fx, fy, sx, sy, dolly = MOVES[move](e, self.sp)
         if z > self.zmax:            # keep the framing sharp on low-resolution images
             z = self.zmax
+        if self.fit is not None:
+            # A panel is shown whole: gentle push, pan and parallax only, centred on the panel.
+            fx, fy = 0.5 + 0.25 * (fx - 0.5), 0.5 + 0.25 * (fy - 0.5)
+            sx, sy, dolly = 0.25 * sx, 0.25 * sy, 0.5 * dolly
         # handheld drift: two slow incommensurate sines, a fraction of a percent
         hx = life * 0.0016 * (np.sin(t * 0.9) + 0.6 * np.sin(t * 2.3 + 1.1))
         hy = life * 0.0012 * (np.sin(t * 0.7 + 0.4) + 0.5 * np.sin(t * 1.9))

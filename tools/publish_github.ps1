@@ -36,7 +36,8 @@ and a quality gate before download.
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01E8fay8MDCpJz1yy9qBrnST
 "@
-git commit -m $msg 2>&1
+$mf = Join-Path (Get-Location) '.local\commit_message.txt'
+if (Test-Path $mf) { git commit -F $mf 2>&1; Remove-Item $mf } else { git commit -m $msg 2>&1 }
 git branch -M main 2>&1
 git remote remove origin 2>$null
 git remote add origin "https://github.com/$owner/$repo.git"

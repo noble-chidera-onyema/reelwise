@@ -25,6 +25,7 @@ from pathlib import Path
 from . import assemble as asm
 from . import plan as P
 from . import qc
+from .motion import MOTION_VERSION
 from .providers import MODELS, Provider, file_hash, make_provider
 from .voices import engine_from_config, time_plan
 
@@ -88,7 +89,7 @@ class Studio:
         imgs = {im["id"]: im["path"] for im in plan["images"]}
         chars = {c["name"].lower(): c for c in plan.get("story_characters", [])}
         payload = {
-            "model": provider.model, "image": file_hash(imgs[job["image"]]),
+            "model": provider.model, "engine": MOTION_VERSION, "image": file_hash(imgs[job["image"]]),
             "chars": [[file_hash(p) for p in chars[c.lower()]["images"]] for c in job.get("characters", [])
                       if c.lower() in chars],
             "shots": [[s["prompt"], round(s["duration_s"], 2)] for s in job["shots"]],
@@ -211,6 +212,15 @@ class Studio:
                  progress=None) -> dict:
         prof = plan["profile"]
         timeline = asm.build_timeline(plan, plan.get("zoom_s", 1.0), prof.get("end_card_s", 2.0))
+        # Landscape panels are shown whole across the middle; their captions go in the band below.
+        from .motion import is_panel
+        imgs = {im["id"]: im["path"] for im in plan["images"]}
+        by_id = {s["id"]: s for s in plan["segments"]}
+        for ts in timeline["segments"]:
+            ps = by_id.get(ts["id"])
+            if ps and ps["kind"] in ("story", "cold_open") and ps.get("image") in imgs and \
+                    is_panel(imgs[ps["image"]], timeline["W"], timeline["H"]):
+                ts["caption_y"] = 0.745
         self.note("Cutting shots to the narration")
         shot_files, shot_checks = self.cut_shots(plan, timeline, clips)
         self.note("Rendering picture")
@@ -219,13 +229,12 @@ class Studio:
         self.note("Mixing audio")
         mix = self.dir / "mix.wav"
         asm.mix_audio(timeline, music, mix)
-        ass = self.dir / "captions.ass"
-        timeline["captions"] = asm.build_ass(timeline, prof, ass)
+        timeline["captions"] = info.get("captions", [])
+        asm.build_ass(timeline, prof, self.dir / "captions.ass")      # editable copy for other editors
         asm.write_srt(timeline, self.dir / "final.srt")
         self.note("Encoding final")
         final = self.dir / "final.mp4"
-        fonts = Path(__file__).resolve().parents[3] / "assets" / "fonts"
-        asm.encode_final(pic, mix, ass, final, fonts, preset=final_preset)
+        asm.encode_final(pic, mix, final, preset=final_preset)
         consistency = None
         if judge:
             frames = []

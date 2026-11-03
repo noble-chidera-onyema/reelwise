@@ -391,9 +391,9 @@ def mix_audio(timeline: dict, music_path: str | None, out: Path, music_db: float
 
 
 def loudnorm_args(wav: Path, target: float = -14.0, tp: float = -1.5, lra: float = 11.0) -> str:
-    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(wav), "-af",
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-nostdin", "-i", str(wav), "-af",
                         f"loudnorm=I={target}:TP={tp}:LRA={lra}:print_format=json", "-f", "null", "-"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=300)
     m = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", r.stderr, re.S)
     if not m:
         return f"loudnorm=I={target}:TP={tp}:LRA={lra}"
@@ -412,6 +412,16 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
     enc = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "bgr24",
                             "-s", f"{W}x{H}", "-r", str(fps), "-i", "-", "-c:v", "libx264", "-preset", "veryfast",
                             "-crf", "12", "-pix_fmt", "yuv420p", str(out)], stdin=subprocess.PIPE)
+    from .captions import CaptionRenderer
+    caps = CaptionRenderer(timeline, plan["profile"])
+    counter = {"i": 0}
+
+    def write(frame: np.ndarray) -> None:
+        # Draw on a copy: the same story frames can be shown again on the TV.
+        out = caps.draw(frame.copy(), counter["i"] / fps)
+        enc.stdin.write(out.tobytes())
+        counter["i"] += 1
+
     need_host = timeline["has_intro"] or timeline["has_outro"]
     rig = tvc = None
     info = {}
@@ -453,7 +463,7 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
                 reader.read()
             for i in range(n):
                 f = reader.read()
-                enc.stdin.write(f.tobytes())
+                write(f)
                 last_frame = f
             post = [reader.read() for _ in range(post_n)]
             if seg["kind"] == "cold_open":
@@ -481,7 +491,7 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
                 story = tv_feed[min(i, len(tv_feed) - 1)]
                 ov = rig.overlay(i) if rig else None
                 f = tvc.render(host_bg(k_global + i), story, min(max(u, 0.0), 1.0), overlay=ov)
-                enc.stdin.write(f.tobytes())
+                write(f)
                 last_frame = f
             written += n
         elif seg["kind"] == "outro":
@@ -496,7 +506,7 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
                 story = tail[min(i, len(tail) - 1)]
                 ov = rig.overlay(i) if rig else None
                 f = tvc.render(host_bg(k_global + i), story, max(u, 0.0), overlay=ov)
-                enc.stdin.write(f.tobytes())
+                write(f)
                 last_frame = f
             written += n
         elif seg["kind"] == "end_card":
@@ -506,7 +516,7 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
             for i in range(n):
                 a = min(1.0, (i + 1) / 6)
                 f = (base.astype(np.float32) * (1 - a) + card.astype(np.float32) * a).astype(np.uint8)
-                enc.stdin.write(f.tobytes())
+                write(f)
             written += n
         k_global += n
         if progress:
@@ -515,6 +525,7 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
     if enc.wait() != 0:
         raise AssemblyError("ffmpeg failed while writing the picture")
     info["frames"] = written
+    info["captions"] = caps.report
     return info
 
 
@@ -525,16 +536,35 @@ def plan_lines(plan: dict, seg_id: str) -> list[dict]:
     return []
 
 
-def encode_final(picture: Path, mix: Path, ass: Path, out: Path, fonts_dir: Path | None,
-                 preset: str = "medium", crf: int = 17) -> None:
-    ass_arg = str(ass).replace("\\", "/").replace(":", "\\:")
-    vf = f"ass='{ass_arg}'"
-    if fonts_dir and fonts_dir.exists():
-        fd = str(fonts_dir).replace("\\", "/").replace(":", "\\:")
-        vf = f"ass='{ass_arg}':fontsdir='{fd}'"
+def _ffmpeg(args: list[str], timeout: float) -> None:
+    """Run ffmpeg with no console input and a hard time limit, so a stuck encode fails loudly."""
+    try:
+        r = subprocess.run(["ffmpeg", "-y", "-nostdin", "-loglevel", "error", *args],
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise AssemblyError(f"ffmpeg did not finish within {int(timeout)}s: {' '.join(args[:6])}")
+    if r.returncode != 0:
+        raise AssemblyError(f"ffmpeg failed: {r.stderr.strip()[-400:]}")
+
+
+def encode_final(picture: Path, mix: Path, out: Path, preset: str = "medium", crf: int = 17) -> None:
+    """Final H.264 + AAC file, in three separate steps.
+
+    Audio and video are never filtered in the same ffmpeg command: some recent
+    Windows builds loop forever when two inputs, -shortest and the loudness
+    filter meet (seen on ffmpeg N-128293, 3 November 2026). Captions are already
+    drawn into the picture."""
+    dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of",
+                                "default=nw=1:nk=1", str(picture)], capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL, timeout=60).stdout.strip() or 0)
+    audio = out.with_name(out.stem + "_audio.m4a")
+    video = out.with_name(out.stem + "_video.mp4")
     af = loudnorm_args(mix)
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(picture), "-i", str(mix),
-                    "-map", "0:v", "-map", "1:a", "-vf", vf, "-af", f"{af},aresample=48000",
-                    "-c:v", "libx264", "-preset", preset, "-crf", str(crf), "-pix_fmt", "yuv420p",
-                    "-profile:v", "high", "-c:a", "aac", "-b:a", "192k", "-shortest",
-                    "-movflags", "+faststart", str(out)], check=True)
+    _ffmpeg(["-i", str(mix), "-t", f"{dur:.3f}", "-af", f"{af},aresample=48000", "-c:a", "aac", "-b:a", "192k",
+             str(audio)], timeout=300)
+    _ffmpeg(["-i", str(picture), "-an", "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
+             "-pix_fmt", "yuv420p", "-profile:v", "high", str(video)], timeout=max(600, dur * 60))
+    _ffmpeg(["-i", str(video), "-i", str(audio), "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{dur:.3f}",
+             "-movflags", "+faststart", str(out)], timeout=300)
+    audio.unlink(missing_ok=True)
+    video.unlink(missing_ok=True)

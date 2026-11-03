@@ -35,7 +35,7 @@ Shots:
 Ren: In nineteen ninety seven, a crew came to cut down forty old trees on Broadway.
 
 OUTRO
-Ren: That is one worth telling.
+Ren: And that's one worth telling.
 ```
 
 - `Name: text` lines are narration, and only your hosts can have them. A line from anyone else is refused, because story characters stay silent.
@@ -43,7 +43,7 @@ Ren: That is one worth telling.
 - Shot words steer the camera: "close-up", "face", "hands" or "insert" frame tight on the subject; "track", "pan", "walks" or "drives" move sideways; "top-down", "drone" or "crane" rise; "reveal" or "pull" pull back; "push" or "dramatic" dolly in.
 - For a hard name, write `Ren: Barsheem walked in. | Bar-sheem walked in.` The voice reads the part after the bar and the caption shows the real spelling.
 
-**Check script** runs your profile rules before anything is made: who opens, whether the first line is a question, Ren's share of the words (70% minimum), Bex's and Ozzy's line limits, digits the voice would stumble on, and an estimate of the running time.
+**Check script** runs your profile rules before anything is made: who opens, whether the first line is a question, Ren's share of the words (60% minimum), Bex's and Ozzy's line limits, digits the voice would stumble on, and an estimate of the running time.
 
 ## Voices (free)
 
@@ -69,8 +69,8 @@ Worth Telling defaults:
 
 | Host | Voice | Rate | Pitch |
 |---|---|---|---|
-| Ren | en-US-AndrewMultilingualNeural (new: calm, warm, steady) | -4% | +0Hz |
-| Bex | en-GB-ThomasNeural (as before) | +12% | -3Hz |
+| Ren | en-US-AndrewMultilingualNeural (new: calm, warm, steady) | -8% | +0Hz |
+| Bex | en-GB-ThomasNeural (as before, a little quicker) | +15% | -3Hz |
 | Ozzy | en-IE-ConnorNeural (as before) | +15% | +5Hz |
 
 Ren has four other storyteller voices in his list to audition: Brian Multilingual, Christopher, Ryan (his old voice) and William (Australian). Press **Hear Ren** to play his first line in the selected voice.
@@ -88,6 +88,14 @@ On Dessa: Block announced it on 23 October 2026 as a research preview. It has no
 **Draft.** Flat camera moves, fastest, for checking timing.
 
 A 34 s episode renders in about 4 minutes on a 2-core machine, and faster on a typical laptop.
+
+## Captions, pace and panels
+
+Captions, the stamp and the end card are drawn in Python with a bundled font (DejaVu Sans Bold; Arial Black when Windows has it), so they look the same on every computer and on Streamlit Cloud.
+
+A line spoken faster than 3.8 words a second sounds rushed. When that happens the line is voiced again, slower, before anything is cut, and the **no rushed lines** check blocks the download if one still slips through. On the Eugene demo, Ren's sign-off came back from the voice at 5.4 words a second and was fixed this way.
+
+Landscape story panels are shown whole across the middle of the frame with a soft blurred copy above and below, instead of being cropped to vertical. The camera still pushes, pans and shows depth on them, but never crops more than about 2% from any edge, so labels and numbers at the edges stay in frame (a test checks this for every camera move). Their captions move into the band below the picture so they never cover the panel's own text.
 
 ## The host scene
 
@@ -116,12 +124,13 @@ The download unlocks when every hard check passes. If one fails, the report name
 
 ## Measured on this build
 
-Full run on the Worth Telling set with your cut-outs and Kokoro voices: 34.4 s, first line at 0.30 s, all 8 lines audible at -12.7 to -14.1 dBFS, -14.2 LUFS, true peak -1.4 dBTP, 46 caption events inside the safe area, every check passed. Ren speaks 6 of the 8 lines.
+Earlier full run on the Worth Telling set with your cut-outs and Kokoro voices: 34.4 s, first line at 0.30 s, all 8 lines audible at -12.7 to -14.1 dBFS, -14.2 LUFS, true peak -1.4 dBTP, 46 caption events inside the safe area, every check passed. Ren speaks 6 of the 8 lines.
 
 Faults found by watching the frames, not by the checks, and fixed:
 
 - the stamp and the end card ran off the edges; both now wrap to fit and are part of the safe-area check
 - close-ups magnified low-resolution images until they were soft; magnification is now capped
+- the final encode hung on some Windows ffmpeg builds when loudness, mixing and the picture ran in one command; it now runs as three short steps, each with a time limit
 - the earlier draft passed every check with tone placeholders and no speech; the "every line audible" check now measures the final file
 
 ## Deploying free
