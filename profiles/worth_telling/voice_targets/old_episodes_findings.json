@@ -1,0 +1,25 @@
+{
+  "name": "old_episodes_findings",
+  "source": "Two earlier Worth Telling episodes sent 3 Nov 2026: the red paperclip (55 s) and the Victoria Hall doors (108 s)",
+  "speakers": "Every line measures as the same voice, Ozzy's 'Toys? Everybody downstairs.' included. The three hosts shared one voice.",
+  "closest_microsoft_voices": "en-AU-WilliamMultilingual, en-CA-Liam, en-GB-Ryan and en-US-Christopher, all within 0.01 of each other, so none is a confident match",
+  "pace": {
+    "words_per_second": 3.07,
+    "pause_median_s": 0.38
+  },
+  "faults_heard_by_transcription": [
+    "the article 'a' is often spoken as the letter 'ay': 'a gap' came out as 'eye gap', 'a theatre' as 'iTheatre', 'one child at a time' as 'one child at eye time', 'a man tore' as 'I manned tore'",
+    "the three hosts are not told apart by sound, so the dialogue reads as one narrator talking to himself"
+  ],
+  "rules_for_new_cast": [
+    "each host at least 4 semitones from the others, or a clearly different accent",
+    "every shortlisted voice is tested on a line full of 'a' words and must say them as 'uh'"
+  ],
+  "ozzy_line": {
+    "text": "Toys? Everybody downstairs.",
+    "where": "Victoria Hall episode, 27.6 s to 29.9 s",
+    "same_voice_as_ren": "yes: voiceprint 0.83 against Ren's lines, inside the 0.68 to 0.85 range Ren's own lines score against each other; pitch median 105 Hz against Ren's 117 Hz",
+    "delivery": "'Toys?' said flat and falling (113 to 87 Hz), 0.3 s beat, then 'Everybody downstairs' jumping to 150 to 175 Hz and dropping: the crowd's thought, said for them",
+    "keep_for_new_ozzy": "two to four words, a beat, then the punch on the stressed word; a voice of his own, at least 4 semitones from Ren or with a different accent"
+  }
+}

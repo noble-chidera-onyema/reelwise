@@ -6,13 +6,25 @@ Everything runs free. No account, card or paid key is needed for any step.
 
 Open it with `streamlit run app/streamlit_app.py` and pick **Studio** in the sidebar.
 
+## Shape: phone or TV
+
+Before anything is made, the Studio asks how the episode should be shaped:
+
+- **Phone, vertical 9:16** (1080x1920). Fills the whole screen.
+- **TV, 16:9** (1920x1080). Plays in the middle of the feed, like a TV screen, the way many story channels post. Story panels are shown whole (a soft blurred copy fills the sides, nothing is cropped), captions sit low and larger so they read at feed size, and at the sign-off the vertical rooftop set sits in the middle of the frame with a blurred copy either side.
+
+The **Build plan** button stays off until one is chosen. From the command line it is `--layout vertical` or `--layout tv`.
+
 ## The episode shape
 
+The default ("hosts seen only at the sign-off"):
+
 1. **Cold open, inside the TV.** The most dramatic story shot fills the screen with a yellow stamp, and Bex asks the hook question within the first 0.35 s.
-2. **Pull back.** The camera pulls out through the TV screen to Ren, Bex and Ozzy on the couch. The TV keeps playing the story; it never freezes on a still.
-3. **Push in.** Under the last words of the intro, the camera pushes back through the screen and the story fills the frame again.
-4. **The story.** Ren tells it. Each scene's image is filmed with real camera moves, cut to the narration over it. Story characters never speak.
-5. **Pull out for the sign-off**, then the follow card.
+2. **The story, full screen, start to finish.** Ren tells it; Bex and Ozzy are heard but not seen. Each scene's image is filmed with real camera moves, cut to the narration over it. Story characters never speak.
+3. **The reveal.** Just before "And that's one worth telling" (0.35 s ahead of the first word) the camera pulls back out of the TV to Ren, Bex and Ozzy on the rooftop couch, with the story still playing on the screen. The hosts are on screen only for the last 2 to 3 seconds.
+4. **The follow card.**
+
+The older shape is still there as **At the start and the end**: the camera pulls out to the hosts for the intro, pushes back through the screen into the story, and pulls out again for the sign-off. In a profile it is `"host_reveal": "classic"`; from the command line, `--reveal classic`.
 
 ## Writing the script
 
@@ -65,15 +77,17 @@ Ozzy (yellow) is the joker: at most one short funny line per video, without slow
 | **chatterbox** | clones a host from a 10-30 s sample, with an emotion slider | `pip install -r requirements-voice-clone.txt` |
 | **kokoro** | offline voices that run on any computer | nothing; 350 MB model downloads once |
 
-Worth Telling defaults:
+### The cast's voices
 
-| Host | Voice | Rate | Pitch |
-|---|---|---|---|
-| Ren | en-US-AndrewMultilingualNeural (new: calm, warm, steady) | -8% | +0Hz |
-| Bex | en-GB-ThomasNeural (as before, a little quicker) | +15% | -3Hz |
-| Ozzy | en-IE-ConnorNeural (as before) | +15% | +5Hz |
+Each voice is chosen by measurement: every candidate reads the same lines, and each read is scored on clarity (the words transcribed back exactly), expression (how far the pitch moves on the key line), the "a" test (the word "a" said as "uh", not "ay"), and distance from the other hosts (at least 4 semitones apart, or a clearly different accent). The old episodes failed the last two: all three hosts shared one voice, and it often said "a" like the letter.
 
-Ren has four other storyteller voices in his list to audition: Brian Multilingual, Christopher, Ryan (his old voice) and William (Australian). Press **Hear Ren** to play his first line in the selected voice.
+| Host | Status | Voice |
+|---|---|---|
+| Ren | target saved, shortlist next | deep and warm, about 115 to 125 Hz; calm long-form pace 3.2 words a second, quicker short-form pace 3.9 |
+| Bex | target saved, shortlist next | brighter, about 169 Hz (at least 160), not Irish; 3.4 words a second |
+| Ozzy | **locked** | en-IE-ConnorNeural, rate +10%, pitch +6Hz: chosen from 36 candidates; clearest, the most expressive punchline (19.4 semitones), a natural 0.77 s beat before the punch, 4 of 4 on the "a" test |
+
+The targets are in `profiles/worth_telling/voice_targets/` (measurements only: no audio from other creators is stored or cloned). A locked voice has its own folder, such as `profiles/worth_telling/voices/ozzy/`, with its settings, its measurements and reference clips of its test lines, and the profile points at it.
 
 To clone your hosts from real recordings, open **Cut voice samples from an old episode**, tick who speaks on each line, save, and set that host's engine to chatterbox.
 
@@ -95,7 +109,7 @@ Captions, the stamp and the end card are drawn in Python with a bundled font (De
 
 A line spoken faster than 3.8 words a second sounds rushed. When that happens the line is voiced again, slower, before anything is cut, and the **no rushed lines** check blocks the download if one still slips through. On the Eugene demo, Ren's sign-off came back from the voice at 5.4 words a second and was fixed this way.
 
-Landscape story panels are shown whole across the middle of the frame with a soft blurred copy above and below, instead of being cropped to vertical. The camera still pushes, pans and shows depth on them, but never crops more than about 2% from any edge, so labels and numbers at the edges stay in frame (a test checks this for every camera move). Their captions move into the band below the picture so they never cover the panel's own text.
+Story panels whose shape differs from the frame are shown whole, with a soft blurred copy filling the rest: a landscape panel in the phone shape becomes a band across the middle, and a 4:3 panel in the TV shape a column down the middle. The camera still pushes, pans and shows depth on them, but never crops more than about 2% from any edge, so labels and numbers at the edges stay in frame (a test checks this for every camera move). Their captions move into the band below the picture so they never cover the panel's own text.
 
 ## The host scene
 

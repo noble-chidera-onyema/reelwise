@@ -315,7 +315,22 @@ with st.expander("6. Plan", expanded=True):
     if model == "motion+hf" and not os.environ.get("HF_TOKEN"):
         b.info("Add a free Hugging Face token as HF_TOKEN in .env (huggingface.co, Settings, Access Tokens) "
                "so the daily free quota is yours.")
-    zoom = st.slider("Push and pull through the TV (seconds)", 0.6, 1.6, 1.0, 0.1)
+    LAYOUT_LABELS = {"vertical": "Phone, vertical 9:16 (fills the whole screen)",
+                     "tv": "TV, 16:9 (plays in the middle of the feed, like a TV screen)"}
+    layout = st.radio("How should this episode be shaped? Choose before anything is made.",
+                      list(LAYOUT_LABELS), index=None, format_func=LAYOUT_LABELS.get, key="layout")
+    if layout == "tv":
+        st.caption("16:9 at 1920x1080. Story panels are shown whole, and at the sign-off the rooftop set "
+                   "sits in the middle of the frame with a soft blurred copy either side.")
+    elif layout == "vertical":
+        st.caption("9:16 at 1080x1920, filling a phone screen.")
+    REVEALS = {"end": "Only at the sign-off: the story fills the screen, and the camera pulls out to the "
+                      "hosts on \"And that's one worth telling\" (last 2 to 3 seconds)",
+               "classic": "At the start and the end: pull out to the hosts for the intro, push back in "
+                          "for the story, pull out again for the sign-off"}
+    reveal = st.radio("When are the hosts seen?", list(REVEALS), format_func=REVEALS.get,
+                      index=list(REVEALS).index(profile.get("host_reveal", "end")))
+    zoom = st.slider("Pull out of the TV (seconds)", 0.6, 1.6, 1.0, 0.1)
     with st.expander("Optional paid extras (off by default)"):
         st.caption("Nothing here is needed. These use paid API keys if you ever add them.")
         paid_model = st.selectbox("Paid video model", ["none"] + PAID_MODELS, disabled=not HAS_FAL)
@@ -324,12 +339,15 @@ with st.expander("6. Plan", expanded=True):
         judge = st.checkbox("Claude checks every clip", value=False, disabled=not HAS_CLAUDE)
         use_claude = st.checkbox("Claude plans the shots", value=False, disabled=not HAS_CLAUDE)
     attempts = 2
-    if st.button("Build plan", type="primary"):
+    if layout is None:
+        st.info("Choose the shape (phone or TV) to build the plan.")
+    if st.button("Build plan", type="primary", disabled=layout is None):
         try:
             if not images:
                 raise P.PlanError("upload at least one story image")
             segs = P.parse_scene_text(st.session_state["script"], hosts)
-            plan = P.new_plan(segs, profile, images, story_chars, st.session_state.get("ref_report"), title=project)
+            plan = P.new_plan(segs, {**profile, "host_reveal": reveal}, images, story_chars,
+                              st.session_state.get("ref_report"), title=project, layout=layout)
             studio = Studio(proj)
             with st.spinner("Narrating every line and planning shots (first run downloads the voice model)"):
                 studio.prepare(plan, voices, zoom_s=zoom, use_claude=use_claude)

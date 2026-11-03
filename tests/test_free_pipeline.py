@@ -215,3 +215,24 @@ def test_landscape_panel_stays_whole_in_every_move(tmp_path):
             # each marker is 120x40 px in a 1000 px wide source shown at 540 px: about 64x21
             assert red.sum() > 0.8 * 64 * 21, (mv, u, "label cut")
             assert blue.sum() > 0.8 * 64 * 21, (mv, u, "figure cut")
+
+
+def test_panel_in_tv_frame_is_shown_whole(tmp_path):
+    """A 4:3 panel in a 16:9 frame becomes a column down the middle, never cropped top or bottom."""
+    if not (CACHE / "midas" / "model-small.onnx").exists():
+        pytest.skip("depth model not downloaded")
+    from reelwise.studio.motion import MOVES, ParallaxRenderer
+    img = np.full((600, 800, 3), 200, np.uint8)
+    img[30:70, 40:160] = (0, 0, 255)          # label, top left, 5% in
+    img[530:570, 640:760] = (255, 0, 0)       # figure, bottom right, 5% in
+    f = tmp_path / "panel43.png"
+    cv2.imwrite(str(f), img)
+    r = ParallaxRenderer(str(f), 960, 540)
+    assert r.fit is not None and r.fit[1] > 0 and r.fit[2] == 0
+    for mv in MOVES:
+        for u in (0.0, 1.0):
+            fr = r.frame(mv, u, u * 3)
+            assert fr.shape == (540, 960, 3)
+            red = (fr[..., 2] > 180) & (fr[..., 0] < 80) & (fr[..., 1] < 80)
+            blue = (fr[..., 0] > 180) & (fr[..., 2] < 80) & (fr[..., 1] < 80)
+            assert red.sum() > 0.8 * 81 * 27 and blue.sum() > 0.8 * 81 * 27, mv

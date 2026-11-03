@@ -91,19 +91,25 @@ class CaptionRenderer:
         from .assemble import chunk_words
         W, H = timeline["W"], timeline["H"]
         self.W, self.H = W, H
-        fs = int(round(H * profile.get("caption_size", 0.048)))
+        # A 16:9 video plays small in a phone feed, so its captions are larger relative to the frame.
+        fs = int(round(H * (profile.get("caption_size_tv", 0.075) if W > H else profile.get("caption_size", 0.048))))
         stroke = max(4, fs // 9)
         safe_l, safe_r = 0.08 * W, 0.82 * W
         self.max_px = safe_r - safe_l
         cx = (safe_l + safe_r) / 2
-        y_story = H * profile.get("caption_y_story", 0.64)
-        y_host = H * profile.get("caption_y_host", 0.17)
+        tv = W > H
+        # TV layout: captions sit low in the picture, as in 16:9 story channels.
+        y_story = H * (profile.get("caption_y_story_tv", 0.84) if tv else profile.get("caption_y_story", 0.64))
+        y_host = H * (profile.get("caption_y_host_tv", 0.12) if tv else profile.get("caption_y_host", 0.17))
         colours = {c["name"]: hex_rgb(c.get("caption_colour", "#FFFFFF")) for c in profile.get("characters", [])}
         self.events: list[Event] = []
         self.report: list[dict] = []
         for seg in timeline["segments"]:
-            y = y_host if seg["kind"] in ("intro", "outro") else H * seg.get("caption_y", y_story / H)
+            y_seg = H * seg.get("caption_y", y_story / H)
             for ln in seg["lines"]:
+                # Over the hosts (the couch shot) or over the story, whichever is on screen.
+                view = ln.get("view", "host" if seg["kind"] in ("intro", "outro") else "story")
+                y = y_host if view == "host" else y_seg
                 words = ln["words"] or [{"w": w, "t0": ln["t0"], "t1": ln["t1"]} for w in ln["text"].split()]
                 # Chunk by measured width, not character count.
                 chunks, cur = [], []

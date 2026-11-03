@@ -39,7 +39,8 @@
         "voice": "bm_daniel",
         "speed": 1.05,
         "lang": "en-gb"
-      }
+      },
+      "voice_target": "worth_telling/voice_targets/viewer_voice_style.json"
     },
     {
       "name": "Ren",
@@ -59,7 +60,9 @@
         "voice": "bm_george",
         "speed": 1.0,
         "lang": "en-gb"
-      }
+      },
+      "voice_target": "worth_telling/voice_targets/storyteller_style.json",
+      "voice_target_short": "worth_telling/voice_targets/storyteller_short_style.json"
     },
     {
       "name": "Ozzy",
@@ -72,15 +75,16 @@
       "voice": {
         "engine": "edge",
         "voice": "en-IE-ConnorNeural",
-        "rate": "+15%",
-        "pitch": "+5Hz"
+        "rate": "+10%",
+        "pitch": "+6Hz"
       },
       "voice_kokoro": {
         "engine": "kokoro",
         "voice": "am_puck",
         "speed": 1.0,
         "lang": "en-us"
-      }
+      },
+      "voice_lock": "worth_telling/voices/ozzy/voice.json"
     }
   ],
   "style_rules": [
@@ -118,5 +122,6 @@
     "Ozzy": [
       "en-IE-ConnorNeural"
     ]
-  }
+  },
+  "host_reveal": "end"
 }

@@ -296,3 +296,40 @@ def test_judge_failures_block_the_gate(tmp_path, images):
     assert {c["rule"] for c in checks if not c["passed"]} >= {"same character as reference", "story characters silent"}
     measured, meta = qc.clip_checks(clip, job, (1080, 1920))
     assert qc.gate(measured) and meta["duration_s"] == pytest.approx(2.0, abs=0.05)
+
+
+@pytest.mark.parametrize("layout,size", [("vertical", (1080, 1920)), ("tv", (1920, 1080))])
+def test_layout_sets_the_frame(images, layout, size):
+    segs = P.parse_scene_text(SCRIPT, HOSTS)
+    plan = P.new_plan(segs, PROFILE, images, [{"name": "Julia", "images": []}], layout=layout)
+    assert (plan["format"]["width"], plan["format"]["height"]) == size
+    assert plan["format"]["layout"] == layout
+    with pytest.raises(P.PlanError):
+        P.new_plan(segs, PROFILE, images, [{"name": "Julia", "images": []}], layout="square")
+
+
+def test_hosts_seen_only_at_the_sign_off(images, tmp_path):
+    """Default reveal: the intro stays on the story, the pull-out starts just before the sign-off."""
+    plan = _plan(images, tmp_path)
+    assert plan["format"]["host_reveal"] == "end"
+    tl = build_timeline(plan, 1.0, 2.0)
+    assert tl["reveal"] == "end"
+    intro = next(s for s in tl["segments"] if s["kind"] == "intro")
+    outro = next(s for s in tl["segments"] if s["kind"] == "outro")
+    assert all(ln["view"] == "story" for ln in intro["lines"])
+    sign_off = outro["lines"][-1]
+    assert sign_off["view"] == "host"
+    start = outro["t0"] + outro["reveal_f"] / tl["fps"]
+    assert sign_off["t0"] - 0.4 <= start <= sign_off["t0"] + 1e-6
+    # The hosts are on screen only for the last few seconds, end card included.
+    assert tl["frames"] / tl["fps"] - start <= 6.0
+
+
+def test_classic_reveal_keeps_the_couch_intro(images, tmp_path):
+    segs = P.parse_scene_text(SCRIPT, HOSTS)
+    plan = P.new_plan(segs, {**PROFILE, "host_reveal": "classic"}, images, [{"name": "Julia", "images": []}])
+    time_plan(plan, {h: MockEngine() for h in HOSTS}, tmp_path)
+    tl = build_timeline(plan, 1.0, 2.0)
+    intro = next(s for s in tl["segments"] if s["kind"] == "intro")
+    outro = next(s for s in tl["segments"] if s["kind"] == "outro")
+    assert intro["lines"][0]["view"] == "host" and outro["reveal_f"] == 0

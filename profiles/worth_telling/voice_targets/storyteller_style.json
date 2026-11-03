@@ -1,0 +1,42 @@
+{
+  "name": "storyteller_style",
+  "purpose": "Target sound and pacing for Ren, the long-form storyteller. Measurements only: no audio from the reference is stored or cloned.",
+  "reference": {
+    "source": "Instagram reel by worldwirevideos, 'Governments Are Saying Get Ready. Here's Why', screen recording sent 3 Nov 2026",
+    "length_s": 245,
+    "speakers_found": 1,
+    "note": "One narrator throughout: every segment of 1.5 s or more matches the average voiceprint; short clips score lower only because they are short."
+  },
+  "voice": {
+    "gender": "male",
+    "pitch_median_hz": 125,
+    "pitch_p10_hz": 74,
+    "pitch_p90_hz": 184,
+    "pitch_range_semitones": 15.8,
+    "brightness_spectral_centroid_hz": 1274,
+    "character": "low-mid, warm, unhurried; wide but smooth pitch movement, no sharp peaks; same tone from the first line to the last"
+  },
+  "pace": {
+    "words_per_second_while_speaking": 3.23,
+    "words_per_minute_overall": 167,
+    "pause_between_sentences_s": {"median": 0.40, "p90": 0.58, "max": 1.18},
+    "sentence_length": "mostly 4 to 14 words; long facts split into two short sentences"
+  },
+  "loudness_lufs": -16.7,
+  "writing_habits": [
+    "opens on a puzzle: 'Okay, so here's something strange.'",
+    "plants an open loop early and pays it off late: 'one of them ends with two buckets', 'Hold that thought.'",
+    "keeps the viewer close: 'Stick with us.', 'We read every list so you don't have to.'",
+    "states one fact per sentence, each with a number, a date or a name",
+    "marks its own opinion clearly: 'Here's our take', 'Our honest view is'",
+    "calms instead of scaring: 'not your panic. Just your time.', 'capacity means they could. It doesn't mean they will.'",
+    "signposts structure: 'Let's start with the map', 'Pressure 1 is space.'"
+  ],
+  "video_habits": [
+    "16:9 landscape picture shown in the middle of the vertical feed (the TV-shaped look)",
+    "one or two words of caption at a time, white bold capitals, centred low in the picture",
+    "data cards with a small label above a big number ('GERMANY SAYS' / '10 DAYS')",
+    "a chapter list ('IN THIS VIDEO') early on, ticked off as the story moves",
+    "a constant dark map or globe background, so the voice carries the story"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "storyteller_short_style",
+  "purpose": "Second target for Ren: the pace and wit for short episodes (under 90 s). Measurements only: no audio from the reference is stored or cloned.",
+  "reference": {
+    "source": "Instagram reel by clayrified_, 'A thief on his way to the gallows offered the king...', screen recording sent 3 Nov 2026",
+    "length_s": 79,
+    "speakers_found": 1,
+    "note": "A different person from both earlier references (voiceprint similarity 0.57 to the long-form storyteller, 0.41 to the viewer's voice). Same register as the long-form storyteller: about 1.4 semitones apart, too close to sit beside him in one cast."
+  },
+  "voice": {
+    "gender": "male",
+    "pitch_median_hz": 115,
+    "pitch_p10_hz": 76,
+    "pitch_p90_hz": 173,
+    "pitch_range_semitones": 14.1,
+    "brightness_spectral_centroid_hz": 1353,
+    "character": "deep, warm, deadpan; the humour is in the understatement, never in the voice going up"
+  },
+  "pace": {
+    "words_per_second_overall": 3.93,
+    "pauses_per_minute": 42,
+    "pause_s": {"median": 0.26, "p90": 0.37, "max": 1.36},
+    "note": "Fast but never rushed: many short breaths instead of a few long stops, and the one long pause (1.4 s) lands before the twist."
+  },
+  "loudness_lufs": -17.1,
+  "writing_habits": [
+    "starts mid-action: 'Two guards drag a thief toward the gallows'",
+    "states the rule, then tests it on each character in turn, rising in rank",
+    "dry understatement for the laugh: 'He may have written down a wrong number here and there.'",
+    "turns the tale into an everyday lesson with three quick modern examples",
+    "ends on the call to follow, cut mid-word so the reel loops straight back to the start"
+  ],
+  "video_habits": [
+    "full 9:16 vertical, claymation characters with expressive faces",
+    "two or three words of caption at a time, bold yellow serif, centred low",
+    "a close-up on the key object (the seed, the necklace) at each turn of the story",
+    "cuts on every sentence; each shot shows the person the line is about"
+  ]
+}

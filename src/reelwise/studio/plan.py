@@ -45,6 +45,9 @@ import re
 from copy import deepcopy
 from pathlib import Path
 
+# Output shapes. "tv" is 16:9: on a phone it plays in the middle of the feed, like a TV screen.
+LAYOUTS = {"vertical": (1080, 1920), "tv": (1920, 1080)}
+
 SPECIAL = {"COLD OPEN": "cold_open", "INTRO": "intro", "OUTRO": "outro"}
 _HEADER = re.compile(r"^\s*(COLD OPEN|INTRO|OUTRO|SCENE\s*(\d+)?)\s*:?\s*$", re.I)
 _FIELD = re.compile(r"^\s*(Image|Images|Characters|Character|Action|Stamp|Shots|Camera)\s*:\s*(.*)$", re.I)
@@ -164,8 +167,11 @@ def parse_scene_text(text: str, host_names: list[str]) -> list[dict]:
 
 
 def new_plan(segments: list[dict], profile: dict, images: list[dict], story_characters: list[dict],
-             reference: dict | None = None, title: str = "") -> dict:
-    """Assemble a plan from parsed segments. Images are [{'id': 1, 'path': ...}]."""
+             reference: dict | None = None, title: str = "", layout: str | None = None) -> dict:
+    """Assemble a plan from parsed segments. Images are [{'id': 1, 'path': ...}].
+
+    layout is "vertical" (9:16, fills the phone) or "tv" (16:9, sits in the middle of the
+    feed like a TV screen). Without one, the profile's orientation decides."""
     ids = {im["id"] for im in images}
     for s in segments:
         if s["image"] is not None and s["image"] not in ids:
@@ -176,10 +182,16 @@ def new_plan(segments: list[dict], profile: dict, images: list[dict], story_char
         if missing:
             raise PlanError(f"{s['label']}: no reference images for {', '.join(missing)}. "
                             "Add them under Story characters, or remove them from Characters:.")
-    w, h = (1080, 1920) if profile.get("orientation", "vertical") == "vertical" else (1920, 1080)
+    layout = layout or ("vertical" if profile.get("orientation", "vertical") == "vertical" else "tv")
+    if layout not in LAYOUTS:
+        raise PlanError(f"layout must be one of {', '.join(LAYOUTS)}, not {layout!r}")
+    w, h = LAYOUTS[layout]
+    reveal = profile.get("host_reveal", "end")
+    if reveal not in ("end", "classic"):
+        raise PlanError("host_reveal must be 'end' or 'classic'")
     plan = {
         "title": title,
-        "format": {"width": w, "height": h, "fps": 30},
+        "format": {"width": w, "height": h, "fps": 30, "layout": layout, "host_reveal": reveal},
         "profile": profile,
         "images": images,
         "story_characters": story_characters,

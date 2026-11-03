@@ -221,6 +221,14 @@ class Studio:
             if ps and ps["kind"] in ("story", "cold_open") and ps.get("image") in imgs and \
                     is_panel(imgs[ps["image"]], timeline["W"], timeline["H"]):
                 ts["caption_y"] = 0.745
+        # With the end reveal the INTRO shows scene 1's footage and the OUTRO the last scene's,
+        # so their story-view captions follow those scenes' placement.
+        story_ts = [t for t in timeline["segments"] if t["kind"] == "story"]
+        if story_ts and timeline.get("reveal") == "end":
+            for ts in timeline["segments"]:
+                src = story_ts[0] if ts["kind"] == "intro" else story_ts[-1] if ts["kind"] == "outro" else None
+                if src is not None and "caption_y" in src:
+                    ts["caption_y"] = src["caption_y"]
         self.note("Cutting shots to the narration")
         shot_files, shot_checks = self.cut_shots(plan, timeline, clips)
         self.note("Rendering picture")

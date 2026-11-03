@@ -1,12 +1,18 @@
 """Cut, composite, caption, mix and export the episode.
 
-Timeline, in order of the plan's segments:
+Timeline, in order of the plan's segments. The default ("end" reveal):
   COLD OPEN  the most dramatic story shot, full frame, with the yellow stamp
-  INTRO      the hosts on the couch; the camera eases toward the TV and, under
-             the last words, pushes through the screen into scene 1
+  INTRO      the story keeps playing full frame; the hosts are heard, not seen
   SCENES     story shots, each cut to the narration over it
-  OUTRO      the camera pulls back out of the TV to the hosts for the sign-off
+  OUTRO      still full frame, until the sign-off: on "And that's one worth
+             telling" the camera pulls back out of the TV to the hosts
   END CARD   2 s follow card over the last frame, blurred
+
+With the "classic" reveal the camera pulls out to the hosts for the whole INTRO
+and pushes back through the screen into scene 1, and the OUTRO pulls out at once.
+
+In the TV layout (16:9) the vertical rooftop set sits in the middle of the
+frame with a soft blurred copy either side, so the hosts are never cropped.
 
 Every segment is a whole number of frames and every shot is cut to the
 frame, so picture and narration cannot drift apart: the narration for a
@@ -28,6 +34,7 @@ from .host import HostRig
 from .tv import TVCompositor, detect_screen
 from .voices import SR, read_wav, write_wav
 
+REVEAL_LEAD_S = 0.35    # the pull-out starts this long before the sign-off's first word
 HEAD_TRIM_S = 0.2       # generated clips often start with a few near-still frames
 MAX_STRETCH = 1.2       # slowest we slow footage down before asking for a longer clip
 
@@ -40,6 +47,7 @@ class AssemblyError(RuntimeError):
 
 def build_timeline(plan: dict, zoom_s: float, end_card_s: float) -> dict:
     fps = plan["format"]["fps"]
+    reveal = plan["format"].get("host_reveal", "classic")
     t = 0.0
     segs = []
     for s in plan["segments"]:
@@ -53,8 +61,23 @@ def build_timeline(plan: dict, zoom_s: float, end_card_s: float) -> dict:
                           "t0": round(g0, 3), "t1": round(g0 + ln["duration_s"], 3),
                           "words": [{"w": w["w"], "t0": round(g0 + w["start"], 3), "t1": round(g0 + w["end"], 3)}
                                     for w in ln.get("words", [])]})
-        segs.append({"id": s["id"], "kind": s["kind"], "label": s["label"], "t0": round(f0 / fps, 3),
-                     "t1": round(f1 / fps, 3), "f0": f0, "f1": f1, "lines": lines, "stamp": s.get("stamp", "")})
+        seg = {"id": s["id"], "kind": s["kind"], "label": s["label"], "t0": round(f0 / fps, 3),
+               "t1": round(f1 / fps, 3), "f0": f0, "f1": f1, "lines": lines, "stamp": s.get("stamp", "")}
+        # Where the hosts can be seen: the frame within an OUTRO where the pull-out starts.
+        if s["kind"] == "outro":
+            if reveal == "end" and lines:
+                start = max(seg["t0"], lines[-1]["t0"] - REVEAL_LEAD_S)
+                seg["reveal_f"] = min(f1 - f0, max(0, int(round((start - seg["t0"]) * fps))))
+            else:
+                seg["reveal_f"] = 0
+        for ln in lines:
+            if s["kind"] == "intro":
+                ln["view"] = "host" if reveal == "classic" else "story"
+            elif s["kind"] == "outro":
+                ln["view"] = "host" if ln["t0"] >= seg["t0"] + seg["reveal_f"] / fps - 1e-6 else "story"
+            else:
+                ln["view"] = "story"
+        segs.append(seg)
         t = t1
     end = None
     if end_card_s > 0:
@@ -66,6 +89,7 @@ def build_timeline(plan: dict, zoom_s: float, end_card_s: float) -> dict:
     kinds = [s["kind"] for s in segs]
     story_idx = [i for i, k in enumerate(kinds) if k == "story"]
     return {"fps": fps, "W": plan["format"]["width"], "H": plan["format"]["height"], "zoom_s": zoom_s,
+            "reveal": reveal,
             "segments": segs, "frames": segs[-1]["f1"] if segs else 0,
             "has_intro": "intro" in kinds, "has_outro": "outro" in kinds,
             "first_story": story_idx[0] if story_idx else None,
@@ -347,12 +371,12 @@ def mix_audio(timeline: dict, music_path: str | None, out: Path, music_db: float
     if sfx:
         z = timeline["zoom_s"]
         for seg in timeline["segments"]:
-            if seg["kind"] == "intro":
+            if seg["kind"] == "intro" and timeline.get("reveal", "classic") == "classic":
                 a = int((seg["t1"] - z - 0.1) * SR)
                 w = whoosh(z + 0.25, True)
                 fx[max(0, a):max(0, a) + len(w)] += w[: n - max(0, a)]
             if seg["kind"] == "outro":
-                a = int(max(0.0, seg["t0"] - 0.15) * SR)
+                a = int(max(0.0, seg["t0"] + seg.get("reveal_f", 0) / timeline["fps"] - 0.15) * SR)
                 w = whoosh(z + 0.25, False, seed=5)
                 fx[a:a + len(w)] += w[: n - a]
     music = np.zeros(n, np.float32)
@@ -422,30 +446,74 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
         enc.stdin.write(out.tobytes())
         counter["i"] += 1
 
-    need_host = timeline["has_intro"] or timeline["has_outro"]
-    rig = tvc = None
+    end_reveal = timeline.get("reveal", "classic") == "end"
+    need_host = timeline["has_outro"] or (timeline["has_intro"] and not end_reveal)
+    rig = tvc = plate = None
     info = {}
+    # The set is drawn on a vertical canvas. In the TV layout it is placed in the middle of
+    # the 16:9 frame with a blurred, dimmed copy either side (pad > 0).
+    vw = W if H >= W else int(round(H * 9 / 16)) // 2 * 2
+    pad = (W - vw) // 2
     if need_host:
         if not host_cfg:
             raise AssemblyError("INTRO/OUTRO need a host scene. Upload one, or remove those sections.")
-        canvas = (W, H)
+        vcanvas = (vw, H)
         if host_cfg.get("hosts"):
-            rig = HostRig(host_cfg, canvas)
+            rig = HostRig(host_cfg, vcanvas)
             plate_frame = rig.plate.frame(0)
         else:
             from .host import Plate
-            rig = None
-            plate = Plate(host_cfg["background"], canvas)
+            plate = Plate(host_cfg["background"], vcanvas)
             plate_frame = plate.frame(0)
         screen = detect_screen(plate_frame, host_cfg.get("screen_corners"))
         if screen is None:
             raise AssemblyError("No TV screen found in the host scene. Make the screen flat green (#00FF00) "
                                 "or enter its four corners.")
-        tvc = TVCompositor(canvas, screen, (W, H))
+        if pad:
+            from .tv import Screen
+            matte = None
+            if screen.matte is not None:
+                matte = np.zeros((H, W), np.uint8)
+                matte[:, pad:pad + vw] = screen.matte
+            screen = Screen(screen.corners + np.array([pad, 0], np.float32), screen.method, matte)
+        tvc = TVCompositor((W, H), screen, (W, H))
         info["screen"] = screen.to_dict()
 
+    side_cache: dict = {}
+
+    def widen(frame: np.ndarray, still: bool) -> np.ndarray:
+        if not pad:
+            return frame
+        if still and "bg" in side_cache:
+            bg = side_cache["bg"]
+        else:
+            # Cover the 16:9 frame with the set (scaled to the full width), blur and dim it.
+            sh = int(round(H * W / vw))
+            big = cv2.resize(frame, (W // 4, sh // 4), interpolation=cv2.INTER_AREA)
+            y0 = (big.shape[0] - H // 4) // 2
+            bg = cv2.resize(big[y0:y0 + H // 4], (W, H), interpolation=cv2.INTER_LINEAR)
+            bg = (cv2.GaussianBlur(bg, (0, 0), 10).astype(np.float32) * 0.5).astype(np.uint8)
+            if still:
+                side_cache["bg"] = bg
+        out = bg.copy()
+        out[:, pad:pad + vw] = frame
+        return out
+
     def host_bg(i):
-        return rig.plate.frame(i) if rig else plate.frame(i)
+        p = rig.plate if rig else plate
+        return widen(p.frame(i), not p.is_video)
+
+    def host_overlay(i):
+        if not rig:
+            return None
+        bgr, a = rig.overlay(i)
+        if not pad:
+            return bgr, a
+        bw = np.zeros((H, W, 3), bgr.dtype)
+        aw = np.zeros((H, W), a.dtype)
+        bw[:, pad:pad + vw] = bgr
+        aw[:, pad:pad + vw] = a
+        return bw, aw
 
     segs = timeline["segments"]
     rf = roll_frames(timeline)
@@ -478,6 +546,17 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
             pre = FrameReader(shot_files[first_id])
             pre_frames = [pre.read() for _ in range(pre_n)]
             tv_feed = (cold_tail + pre_frames) if cold_tail else pre_frames
+            if end_reveal:
+                # The hosts are heard, not seen: the story keeps playing full frame.
+                for i in range(n):
+                    f = tv_feed[min(i, len(tv_feed) - 1)]
+                    write(f)
+                    last_frame = f
+                written += n
+                k_global += n
+                if progress:
+                    progress(si + 1, len(segs), seg["label"])
+                continue
             if rig:
                 rig.drive(plan_lines(plan, seg["id"]), 0.0, n, fps, seed=11)
             for i in range(n):
@@ -489,7 +568,7 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
                 else:
                     u = 0.06 + 0.03 * ((i - z_frames) / max(n - 2 * z_frames - 1, 1))   # slow drift toward the TV
                 story = tv_feed[min(i, len(tv_feed) - 1)]
-                ov = rig.overlay(i) if rig else None
+                ov = host_overlay(i)
                 f = tvc.render(host_bg(k_global + i), story, min(max(u, 0.0), 1.0), overlay=ov)
                 write(f)
                 last_frame = f
@@ -498,14 +577,19 @@ def render_picture(plan: dict, timeline: dict, shot_files: dict[str, list[str]],
             tail = story_tail_frames or [last_frame]
             if rig:
                 rig.drive(plan_lines(plan, seg["id"]), 0.0, n, fps, seed=13)
+            r0 = seg.get("reveal_f", 0)          # full frame until the sign-off, then pull out
             for i in range(n):
-                if i < z_frames:
-                    u = 1.0 - 0.94 * ((i + 1) / z_frames)
-                else:
-                    u = 0.06 * (1 - (i - z_frames) / max(n - z_frames - 1, 1))
                 story = tail[min(i, len(tail) - 1)]
-                ov = rig.overlay(i) if rig else None
-                f = tvc.render(host_bg(k_global + i), story, max(u, 0.0), overlay=ov)
+                if i < r0:
+                    write(story)
+                    last_frame = story
+                    continue
+                j = i - r0
+                if j < z_frames:
+                    u = 1.0 - 0.94 * ((j + 1) / z_frames)
+                else:
+                    u = 0.06 * (1 - (j - z_frames) / max(n - r0 - z_frames - 1, 1))
+                f = tvc.render(host_bg(k_global + i), story, max(u, 0.0), overlay=host_overlay(i))
                 write(f)
                 last_frame = f
             written += n

@@ -25,7 +25,7 @@ import numpy as np
 from .voices import CACHE, fetch
 
 # Bump when the look of a motion clip changes, so cached clips are rendered again.
-MOTION_VERSION = 2
+MOTION_VERSION = 3
 
 MIDAS_URL = "https://github.com/isl-org/MiDaS/releases/download/v2_1/model-small.onnx"
 _net = None
@@ -57,7 +57,7 @@ def _cover(img, w, h):
 
 
 def is_panel(image_path: str, out_w: int, out_h: int) -> bool:
-    """True when the image is landscape enough to be shown whole (fit mode)."""
+    """True when the image is shown as a band across the middle of the frame, with room below it."""
     img = cv2.imread(image_path)
     return img is not None and (img.shape[1] / img.shape[0]) / (out_w / out_h) > 1.25
 
@@ -115,14 +115,19 @@ class ParallaxRenderer:
             raise ValueError(f"cannot read {image_path}")
         self.full_w, self.full_h = out_w, out_h
         self.fit = None
-        if (img.shape[1] / img.shape[0]) / (out_w / out_h) > 1.25:
-            # Landscape panel in a vertical frame: show the whole picture across the middle
-            # with a soft blurred copy above and below, so nothing is cropped away.
-            inner_h = int(out_w * img.shape[0] / img.shape[1]) // 2 * 2
+        r = (img.shape[1] / img.shape[0]) / (out_w / out_h)
+        if r > 1.25 or r < 0.8:
+            # The picture's shape is far from the frame's (a landscape panel in a vertical frame, or a
+            # 4:3 panel in a TV frame): show it whole, with a soft blurred copy filling the rest.
             bg = _cover(img, out_w, out_h)
             bg = cv2.GaussianBlur(bg, (0, 0), 28)
-            self.fit = ((bg.astype(np.float32) * 0.5).astype(np.uint8), (out_h - inner_h) // 2)
-            out_h = inner_h
+            bg = (bg.astype(np.float32) * 0.5).astype(np.uint8)
+            if r > 1.25:      # wider than the frame: band across the middle
+                inner_w, inner_h = out_w, int(out_w * img.shape[0] / img.shape[1]) // 2 * 2
+            else:             # narrower than the frame: column down the middle
+                inner_w, inner_h = int(out_h * img.shape[1] / img.shape[0]) // 2 * 2, out_h
+            self.fit = (bg, (out_w - inner_w) // 2, (out_h - inner_h) // 2)
+            out_w, out_h = inner_w, inner_h
         self.ow, self.oh = out_w, out_h
         # Canvas margin for camera moves. Panels keep almost all of the picture: their labels,
         # numbers and figures sit right at the edges.
@@ -172,9 +177,9 @@ class ParallaxRenderer:
             blur = cv2.GaussianBlur(out, (0, 0), 1.2)
             out = cv2.addWeighted(out, 1.45, blur, -0.45, 0)
         if self.fit is not None:
-            bg, y0 = self.fit
+            bg, x0, y0 = self.fit
             frame = bg.copy()
-            frame[y0:y0 + out.shape[0]] = out
+            frame[y0:y0 + out.shape[0], x0:x0 + out.shape[1]] = out
             return frame
         return out
 

@@ -14,7 +14,7 @@ You give it your character profile and a true story. It turns a breakdown into a
 
 ## Studio: make the episode, free
 
-The Studio page takes a reference video, your story images, a scene script, your host scene and the host voices, and returns a finished 9:16 episode. It opens inside the TV on the hook, pulls back to the hosts on the couch while the TV keeps playing, and pushes through the screen into the story. Every step is free: the hosts' own Microsoft Edge neural voices (Kokoro offline voices and Chatterbox clones are there too), a depth-based 3D camera that moves through each image, optional free AI hero shots from a Hugging Face Space, lip flaps driven by each host's audio, checks on every clip and on the final file, and a download that unlocks only when the episode passes.
+The Studio page takes a reference video, your story images, a scene script, your host scene and the host voices, and returns a finished 9:16 episode. It asks first whether the episode is shaped for a phone (9:16) or as a TV-style 16:9 video in the middle of the feed. The story plays full screen from the hook to the last line, and only on "And that's one worth telling" does the camera pull back out of the TV to the hosts on the couch. Every step is free: the hosts' own Microsoft Edge neural voices (Kokoro offline voices and Chatterbox clones are there too), a depth-based 3D camera that moves through each image, optional free AI hero shots from a Hugging Face Space, lip flaps driven by each host's audio, checks on every clip and on the final file, and a download that unlocks only when the episode passes.
 
 Full guide: [docs/studio.md](docs/studio.md).
 
@@ -56,7 +56,7 @@ Development F1 was 0.966 and held-out F1 0.963, so the thresholds were not fitte
 
 Speed: a 38-second vertical video takes 1.3 s to analyse at 360x640 and 7.0 s at 1080x1920 on a two-core machine, without the optional vision step.
 
-58 unit tests cover cut detection, flash rejection, audio onset and pauses, caption parsing, YouTube API parsing and paging, outlier scoring, effect sizes, the script checker, the Studio's scene parser, timing, TV detection and push-through, shot cutting, captions, Kokoro speech, pause-based word timing, the 3D motion engine (including panels kept whole in every move), the free AI hero-shot path (fallback, identity guard, splice), the fal.ai request it builds, and the Claude planner and judge (with stand-in clients).
+63 unit tests cover cut detection, flash rejection, audio onset and pauses, caption parsing, YouTube API parsing and paging, outlier scoring, effect sizes, the script checker, the Studio's scene parser, timing, TV detection and push-through, shot cutting, captions, Kokoro speech, pause-based word timing, the 3D motion engine (including panels kept whole in every move), the free AI hero-shot path (fallback, identity guard, splice), the fal.ai request it builds, and the Claude planner and judge (with stand-in clients).
 
 ## Known limitations
 
@@ -72,7 +72,7 @@ The live API calls (YouTube, Anthropic, caption fetching) are covered by tests u
 
 ## Run it locally
 
-On Windows, double-click `tools\setup_windows.bat` once. It fetches ffmpeg if you do not have it, creates `.venv` and installs everything. Then double-click `tools\run_checks_windows.bat` to run the tests, voice each host into `voice_check\`, and make the Eugene demo episode in `projects\eugene_demo_v2\final.mp4`. To start the app: `.venv\Scripts\streamlit run app\streamlit_app.py`.
+On Windows, double-click `tools\setup_windows.bat` once. It fetches ffmpeg if you do not have it, creates `.venv` and installs everything. Then double-click `tools\run_checks_windows.bat` to run the tests, voice each host into `voice_check\`, and make the Eugene demo in both shapes, `projects\eugene_vertical\final.mp4` and `projects\eugene_tv\final.mp4`. To start the app: `.venv\Scripts\streamlit run app\streamlit_app.py`.
 
 By hand:
 

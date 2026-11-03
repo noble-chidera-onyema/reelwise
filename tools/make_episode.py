@@ -1,7 +1,7 @@
 """Make an episode from the command line, exactly as the Studio page does.
 
     python tools/make_episode.py --script story.txt --images DIR [--profile worth_telling]
-                                 [--motion motion|motion+hf|draft] [--music track.mp3] [--out projects/NAME]
+                                 --layout vertical|tv [--reveal end|classic] [--motion motion|motion+hf|draft] [--music track.mp3] [--out projects/NAME]
 
 Images in DIR are numbered in name order (Image: 1 is the first file). Writes
 final.mp4, final.srt and report.json into --out and prints every check.
@@ -45,6 +45,10 @@ def main() -> int:
     ap.add_argument("--profile", default="worth_telling")
     ap.add_argument("--motion", default="motion")
     ap.add_argument("--music", default=None)
+    ap.add_argument("--layout", choices=["vertical", "tv"], required=True,
+                    help="vertical = 9:16 phone; tv = 16:9, plays in the middle of the feed like a TV")
+    ap.add_argument("--reveal", choices=["end", "classic"], default=None,
+                    help="end = hosts seen only at the sign-off (default); classic = intro and sign-off")
     ap.add_argument("--out", default=str(ROOT / "projects" / "episode"))
     a = ap.parse_args()
 
@@ -57,7 +61,9 @@ def main() -> int:
         print(f"  [{'PASS' if c['passed'] else 'WARN'}] {c['rule']}: {c['detail']}")
     files = sorted(p for p in Path(a.images).iterdir() if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"))
     images = [{"id": i, "path": str(p)} for i, p in enumerate(files, 1)]
-    plan = P.new_plan(segs, profile, images, [], title=Path(a.out).name)
+    if a.reveal:
+        profile["host_reveal"] = a.reveal
+    plan = P.new_plan(segs, profile, images, [], title=Path(a.out).name, layout=a.layout)
     st = Studio(a.out)
     voices = {c["name"]: c["voice"] for c in profile["characters"]}
     st.prepare(plan, voices, zoom_s=1.0)

@@ -1,0 +1,39 @@
+{
+  "name": "viewer_voice_style",
+  "purpose": "Target sound for Bex, the viewer's voice. Measurements only: no audio from the reference is stored or cloned.",
+  "reference": {
+    "source": "Instagram reel by bashtech.yt, 'How to Get 4000 Watch Hours on YouTube Fast', screen recording sent 3 Nov 2026",
+    "length_s": 73,
+    "speakers_found": 1,
+    "note": "A different person from the storyteller reference: voiceprint similarity 0.58 between the two, against 0.83 within the storyteller's own lines."
+  },
+  "voice": {
+    "gender": "male",
+    "pitch_median_hz": 169,
+    "pitch_p10_hz": 107,
+    "pitch_p90_hz": 250,
+    "pitch_range_semitones": 14.7,
+    "brightness_spectral_centroid_hz": 1909,
+    "character": "brighter and higher than the storyteller, about 5 semitones above him; clear, friendly, explains like a mate showing you something on his phone",
+    "contrast_with_ren": "pitch 169 vs 125 Hz and a much brighter tone, so the two never blur in a dialogue"
+  },
+  "pace": {
+    "words_per_second_while_speaking": 2.80,
+    "words_per_minute_overall": 155,
+    "pause_between_sentences_s": {"median": 0.35, "max": 0.61},
+    "for_bex": "Bex should sound quicker and more surprised than the reference: target 3.4 words a second, short lines"
+  },
+  "loudness_lufs": -17.0,
+  "writing_habits": [
+    "opens on the promise: 'Here's how to reach 4000 hours...'",
+    "reframes the worry: 'You don't need viral videos, you just need math.'",
+    "speaks to the viewer directly: 'you'll need', 'your average view'",
+    "walks through steps in order: 'open YouTube Studio, click Analytics, then go to Content'"
+  ],
+  "video_habits": [
+    "full 9:16 vertical with a dark grid background",
+    "big centred numbers ('4,000 hours') and screenshots as proof",
+    "yellow two-line captions in bold capitals, low in the frame",
+    "simple bar charts for comparisons"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "host": "Ozzy",
+  "locked": true,
+  "locked_on": "2026-11-03",
+  "engine": "edge",
+  "voice": "en-IE-ConnorNeural",
+  "rate": "+10%",
+  "pitch": "+6Hz",
+  "why": "Chosen from 36 candidates (18 free Microsoft voices, plain and in Ozzy's setting), each voicing the same four lines. Best on every measure: clearest (every word transcribed back correctly), most expressive (19.4 semitones of movement in the punchline, the highest of all), passes the 'a' test (all four 'a's said as 'uh'), and an Irish accent no other host shares.",
+  "measured": {
+    "pitch_median_hz": 153,
+    "semitones_above_ren": 4.3,
+    "semitones_below_bex_target": 1.7,
+    "punchline_range_semitones": 19.4,
+    "beat_after_setup_s": 0.77,
+    "word_error_rate": 0.0,
+    "a_test": "4 of 4"
+  },
+  "delivery": "two to four words, a beat, then the punch on the stressed word",
+  "references": {
+    "toys": "reference_toys.mp3",
+    "carwash": "reference_carwash.mp3",
+    "atest": "reference_atest.mp3",
+    "house": "reference_house.mp3"
+  },
+  "rule_for_the_rest_of_the_cast": "Bex sits close in pitch (target 169 Hz), so Bex must not be Irish and should stay at or above 160 Hz; Ren stays at or below 125 Hz."
+}
