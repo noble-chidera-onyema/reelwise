@@ -1,0 +1,28 @@
+{
+  "host": "Ren",
+  "locked": true,
+  "locked_on": "2026-11-04",
+  "engine": "chatterbox",
+  "model": "turbo",
+  "temperature": 0.7,
+  "sample": "worth_telling/voices/ren/sample.wav",
+  "why": "Clearest storyteller of the four: crisp top end (95% rolloff 5.4 kHz), steady 3.3 words a second, the most life in his delivery.",
+  "chosen_from": "12 auditions (4 per host) of the best-matching male voices among 60 LibriTTS-R speakers, each reading the host's line with Chatterbox Turbo",
+  "measured_on_reference_line": {
+    "line": "In June of nineteen ninety seven, a crew came to cut down forty old trees. And that's one worth telling.",
+    "words_transcribed_back_wrong": 0,
+    "pitch_median_hz": 129,
+    "pitch_range_semitones": 24.8,
+    "words_per_second": 3.31,
+    "rolloff_95_hz": 5437
+  },
+  "source": {
+    "dataset": "LibriTTS-R",
+    "speaker_id": "7021",
+    "licence": "CC BY 4.0",
+    "url": "https://www.openslr.org/141/",
+    "credit": "Voice of LibriTTS-R speaker 7021. LibriTTS-R by Y. Koizumi et al. (2023), CC BY 4.0, derived from LibriTTS (H. Zen et al.) and LibriSpeech/LibriVox recordings."
+  },
+  "reference": "worth_telling/voices/ren/reference.wav",
+  "voice_check": "Every new line is compared with reference.wav (WeSpeaker voiceprint) and voiced again, steadier, if it scores under 0.70."
+}

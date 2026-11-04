@@ -414,17 +414,42 @@ def mix_audio(timeline: dict, music_path: str | None, out: Path, music_db: float
             "music": bool(music_path)}
 
 
-def loudnorm_args(wav: Path, target: float = -14.0, tp: float = -1.5, lra: float = 11.0) -> str:
-    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-nostdin", "-i", str(wav), "-af",
-                        f"loudnorm=I={target}:TP={tp}:LRA={lra}:print_format=json", "-f", "null", "-"],
+def _measure(wav: Path, pre: str = "") -> dict:
+    """ffmpeg loudnorm measurement of a file, optionally after a filter chain."""
+    af = (pre + "," if pre else "") + "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json"
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-nostdin", "-i", str(wav), "-af", af, "-f", "null", "-"],
                        capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=300)
     m = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", r.stderr, re.S)
-    if not m:
+    return json.loads(m.group(0)) if m else {}
+
+
+def loudnorm_args(wav: Path, target: float = -14.0, tp: float = -1.5, lra: float = 11.0) -> str:
+    """Filter chain that brings the mix to `target` LUFS with true peak at or under `tp`.
+
+    When plain gain would push the peaks over `tp` (cloned voices are often quiet with sharp
+    peaks), loudnorm would quietly fall back and land short of the target (-15.2 LUFS on the
+    first Chatterbox render). Then the mix gets gain plus a peak limiter instead, and the gain
+    is corrected from a fresh measurement until the result is within 0.3 LU of the target."""
+    d = _measure(wav)
+    if not d:
         return f"loudnorm=I={target}:TP={tp}:LRA={lra}"
-    d = json.loads(m.group(0))
-    return (f"loudnorm=I={target}:TP={tp}:LRA={lra}:measured_I={d['input_i']}:measured_TP={d['input_tp']}:"
-            f"measured_LRA={d['input_lra']}:measured_thresh={d['input_thresh']}:offset={d['target_offset']}:"
-            f"linear=true")
+    i, peak = float(d["input_i"]), float(d["input_tp"])
+    if peak + (target - i) <= tp - 0.2:
+        return (f"loudnorm=I={target}:TP={tp}:LRA={lra}:measured_I={d['input_i']}:measured_TP={d['input_tp']}:"
+                f"measured_LRA={d['input_lra']}:measured_thresh={d['input_thresh']}:offset={d['target_offset']}:"
+                f"linear=true")
+    gain, limit = target - i, 10 ** ((tp - 1.2) / 20)   # headroom for AAC overshoot
+    af = ""
+    for _ in range(4):
+        af = f"volume={gain:.2f}dB,alimiter=limit={limit:.3f}:attack=1:release=50:level=false"
+        m = _measure(wav, af)
+        if not m:
+            break
+        deficit = target - float(m["input_i"])
+        if abs(deficit) < 0.3:
+            break
+        gain += deficit
+    return af
 
 
 # --------------------------------------------------------------------------- picture

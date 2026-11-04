@@ -28,10 +28,11 @@
       "max_words_per_line": 24,
       "caption_colour": "#14A5A0",
       "voice": {
-        "engine": "edge",
-        "voice": "en-GB-ThomasNeural",
-        "rate": "+15%",
-        "pitch": "-3Hz"
+        "engine": "chatterbox",
+        "model": "turbo",
+        "temperature": 0.7,
+        "sample": "worth_telling/voices/bex/sample.wav",
+        "reference": "worth_telling/voices/bex/reference.wav"
       },
       "max_lines": 3,
       "voice_kokoro": {
@@ -40,7 +41,15 @@
         "speed": 1.05,
         "lang": "en-gb"
       },
-      "voice_target": "worth_telling/voice_targets/viewer_voice_style.json"
+      "voice_target": "worth_telling/voice_targets/viewer_voice_style.json",
+      "voice_edge": {
+        "engine": "edge",
+        "voice": "en-GB-ThomasNeural",
+        "rate": "+15%",
+        "pitch": "-3Hz"
+      },
+      "voice_lock": "worth_telling/voices/bex/voice.json",
+      "voice_name": "LibriTTS-R speaker 174"
     },
     {
       "name": "Ren",
@@ -50,10 +59,11 @@
       "max_words_per_line": 24,
       "caption_colour": "#F2801E",
       "voice": {
-        "engine": "edge",
-        "voice": "en-US-AndrewMultilingualNeural",
-        "rate": "-8%",
-        "pitch": "+0Hz"
+        "engine": "chatterbox",
+        "model": "turbo",
+        "temperature": 0.7,
+        "sample": "worth_telling/voices/ren/sample.wav",
+        "reference": "worth_telling/voices/ren/reference.wav"
       },
       "voice_kokoro": {
         "engine": "kokoro",
@@ -62,7 +72,15 @@
         "lang": "en-gb"
       },
       "voice_target": "worth_telling/voice_targets/storyteller_style.json",
-      "voice_target_short": "worth_telling/voice_targets/storyteller_short_style.json"
+      "voice_target_short": "worth_telling/voice_targets/storyteller_short_style.json",
+      "voice_edge": {
+        "engine": "edge",
+        "voice": "en-US-AndrewMultilingualNeural",
+        "rate": "-8%",
+        "pitch": "+0Hz"
+      },
+      "voice_lock": "worth_telling/voices/ren/voice.json",
+      "voice_name": "LibriTTS-R speaker 7021"
     },
     {
       "name": "Ozzy",
@@ -73,10 +91,11 @@
       "max_words_per_line": 10,
       "caption_colour": "#F7C42B",
       "voice": {
-        "engine": "edge",
-        "voice": "en-IE-ConnorNeural",
-        "rate": "+10%",
-        "pitch": "+6Hz"
+        "engine": "chatterbox",
+        "model": "turbo",
+        "temperature": 0.7,
+        "sample": "worth_telling/voices/ozzy/sample.wav",
+        "reference": "worth_telling/voices/ozzy/reference.wav"
       },
       "voice_kokoro": {
         "engine": "kokoro",
@@ -84,7 +103,14 @@
         "speed": 1.0,
         "lang": "en-us"
       },
-      "voice_lock": "worth_telling/voices/ozzy/voice.json"
+      "voice_lock": "worth_telling/voices/ozzy/voice.json",
+      "voice_edge": {
+        "engine": "edge",
+        "voice": "en-IE-ConnorNeural",
+        "rate": "+10%",
+        "pitch": "+6Hz"
+      },
+      "voice_name": "LibriTTS-R speaker 2300"
     }
   ],
   "style_rules": [
@@ -123,5 +149,6 @@
       "en-IE-ConnorNeural"
     ]
   },
-  "host_reveal": "end"
+  "host_reveal": "end",
+  "max_words_per_second": 4.2
 }

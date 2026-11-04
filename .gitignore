@@ -3,6 +3,7 @@
 
 # environments and caches
 .venv/
+.venv-clone/
 venv/
 __pycache__/
 *.pyc

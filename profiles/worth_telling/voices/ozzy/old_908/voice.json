@@ -1,0 +1,28 @@
+{
+  "host": "Ozzy",
+  "locked": true,
+  "locked_on": "2026-11-04",
+  "engine": "chatterbox",
+  "model": "turbo",
+  "temperature": 0.7,
+  "sample": "worth_telling/voices/ozzy/sample.wav",
+  "why": "Playful: the widest pitch swing on the punchline (20.9 semitones), light and bright, clearly a different man from Ren and Bex.",
+  "chosen_from": "12 auditions (4 per host) of the best-matching male voices among 60 LibriTTS-R speakers, each reading the host's line with Chatterbox Turbo",
+  "measured_on_reference_line": {
+    "line": "Toys? Everybody downstairs.",
+    "words_transcribed_back_wrong": 0,
+    "pitch_median_hz": 176,
+    "pitch_range_semitones": 20.9,
+    "words_per_second": 1.58,
+    "rolloff_95_hz": 6541
+  },
+  "source": {
+    "dataset": "LibriTTS-R",
+    "speaker_id": "908",
+    "licence": "CC BY 4.0",
+    "url": "https://www.openslr.org/141/",
+    "credit": "Voice of LibriTTS-R speaker 908. LibriTTS-R by Y. Koizumi et al. (2023), CC BY 4.0, derived from LibriTTS (H. Zen et al.) and LibriSpeech/LibriVox recordings."
+  },
+  "reference": "worth_telling/voices/ozzy/reference.wav",
+  "voice_check": "Every new line is compared with reference.wav (WeSpeaker voiceprint) and voiced again, steadier, if it scores under 0.70."
+}

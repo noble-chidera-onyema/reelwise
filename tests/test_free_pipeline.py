@@ -170,7 +170,7 @@ def test_rushed_line_is_voiced_again_slower(tmp_path):
     time_plan(plan, {"Ren": Rate()}, tmp_path)
     ln = plan["segments"][0]["lines"][0]
     assert ln.get("slowed") is True
-    assert len(ln["text"].split()) / ln["duration_s"] <= 3.8 + 1e-6
+    assert len(ln["text"].split()) / ln["duration_s"] <= prof.get("max_words_per_second", 3.8) + 1e-6
 
 
 def test_captions_drawn_inside_safe_area(tmp_path):
@@ -236,3 +236,84 @@ def test_panel_in_tv_frame_is_shown_whole(tmp_path):
             red = (fr[..., 2] > 180) & (fr[..., 0] < 80) & (fr[..., 1] < 80)
             blue = (fr[..., 0] > 180) & (fr[..., 2] < 80) & (fr[..., 1] < 80)
             assert red.sum() > 0.8 * 81 * 27 and blue.sum() > 0.8 * 81 * 27, mv
+
+
+def test_chatterbox_worker_replies_survive_library_chatter(tmp_path):
+    """Libraries print to stdout (e.g. 'loaded PerthNet ...'); the app must read past it."""
+    import subprocess
+    import sys
+    from reelwise.studio.voices import ChatterboxEngine
+    script = tmp_path / "fake_worker.py"
+    script.write_text(
+        "import sys, json\n"
+        "print('loaded PerthNet (Implicit) at step 250,000', flush=True)\n"
+        "print(json.dumps({'ready': True}), flush=True)\n"
+        "for line in sys.stdin:\n"
+        "    print('Sampling: 10%', flush=True)\n"
+        "    print(json.dumps({'ok': True, 'out': json.loads(line)['out']}), flush=True)\n")
+    p = subprocess.Popen([sys.executable, str(script)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         text=True, bufsize=1)
+    try:
+        assert ChatterboxEngine._reply(p) == {"ready": True}
+        p.stdin.write(json.dumps({"out": "x.wav"}) + "\n")
+        p.stdin.flush()
+        assert ChatterboxEngine._reply(p) == {"ok": True, "out": "x.wav"}
+    finally:
+        p.kill()
+
+
+def test_drifted_line_is_voiced_again_in_the_right_voice(tmp_path, monkeypatch):
+    """A take that does not match the host's reference read is voiced again, steadier."""
+    from reelwise.studio import voiceprint
+    from reelwise.studio.voices import ChatterboxEngine, write_wav
+    ref = tmp_path / "ref.wav"
+    write_wav(ref, np.zeros(SR, np.float32))
+    eng = ChatterboxEngine(str(ref), reference=str(ref), temperature=0.7)
+    temps = []
+
+    def fake_take(text, out, t):
+        temps.append(t)
+        x = (0.1 * np.sin(np.arange(SR) / 20)).astype(np.float32)
+        write_wav(out, x)
+        return x
+
+    scores = iter([0.55, 0.81])
+    monkeypatch.setattr(eng, "_take", fake_take)
+    monkeypatch.setattr(voiceprint, "available", lambda: True)
+    monkeypatch.setattr(voiceprint, "match", lambda path, reference: next(scores))
+    sp = eng.speak("Worst car wash in Oregon.", tmp_path / "line.wav")
+    assert temps == [0.7, 0.5]          # first take drifted, second (steadier) matched
+    assert eng.last_match == 0.81 and sp.duration_s > 0
+
+
+def test_quiet_peaky_mix_still_reaches_target_loudness(tmp_path):
+    """Cloned voices are quiet with sharp peaks; plain loudnorm fell short (-15.2 LUFS)."""
+    import re
+    import subprocess
+    from reelwise.studio.assemble import loudnorm_args
+    from reelwise.studio.voices import write_wav
+    rng = np.random.default_rng(1)
+    t = np.arange(SR * 12) / SR
+    x = 0.03 * np.sin(2 * np.pi * 180 * t) * (1 + np.sin(2 * np.pi * 3 * t))
+    x[rng.integers(0, len(x), 40)] = 0.6                     # sharp peaks
+    wav = tmp_path / "mix.wav"
+    write_wav(wav, x.astype(np.float32))
+    af = loudnorm_args(wav)
+    out = tmp_path / "out.m4a"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(wav), "-af", af + ",aresample=48000",
+                    "-c:a", "aac", "-b:a", "192k", str(out)], check=True)
+    r = subprocess.run(["ffmpeg", "-nostats", "-i", str(out), "-af", "ebur128=peak=true", "-f", "null", "-"],
+                       capture_output=True, text=True).stderr
+    i = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", r)[-1])
+    peak = float(re.findall(r"Peak:\s+(-?[\d.]+) dBFS", r)[-1])
+    assert abs(i + 14) <= 1.0 and peak <= -1.0, (i, peak, af)
+
+
+def test_new_voice_sample_means_new_takes(tmp_path):
+    from reelwise.studio.voices import ChatterboxEngine, write_wav
+    a, b = tmp_path / "a" / "sample.wav", tmp_path / "b" / "sample.wav"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    write_wav(a, np.zeros(SR, np.float32))
+    write_wav(b, np.full(SR, 0.1, np.float32))
+    assert ChatterboxEngine(str(a)).key("Toys?") != ChatterboxEngine(str(b)).key("Toys?")

@@ -1,0 +1,28 @@
+{
+  "host": "Bex",
+  "locked": true,
+  "locked_on": "2026-11-04",
+  "engine": "chatterbox",
+  "model": "turbo",
+  "temperature": 0.7,
+  "sample": "worth_telling/voices/bex/sample.wav",
+  "why": "Brightest and clearest of all twelve (rolloff 6.6 kHz), quick at 3.7 words a second: the viewer's surprised voice.",
+  "chosen_from": "12 auditions (4 per host) of the best-matching male voices among 60 LibriTTS-R speakers, each reading the host's line with Chatterbox Turbo",
+  "measured_on_reference_line": {
+    "line": "Wait, they used a dozen cans of pepper spray on one man?",
+    "words_transcribed_back_wrong": 0,
+    "pitch_median_hz": 140,
+    "pitch_range_semitones": 9.4,
+    "words_per_second": 3.69,
+    "rolloff_95_hz": 6621
+  },
+  "source": {
+    "dataset": "LibriTTS-R",
+    "speaker_id": "174",
+    "licence": "CC BY 4.0",
+    "url": "https://www.openslr.org/141/",
+    "credit": "Voice of LibriTTS-R speaker 174. LibriTTS-R by Y. Koizumi et al. (2023), CC BY 4.0, derived from LibriTTS (H. Zen et al.) and LibriSpeech/LibriVox recordings."
+  },
+  "reference": "worth_telling/voices/bex/reference.wav",
+  "voice_check": "Every new line is compared with reference.wav (WeSpeaker voiceprint) and voiced again, steadier, if it scores under 0.70."
+}

@@ -240,6 +240,14 @@ def final_checks(final_path: str, plan: dict, timeline: dict, consistency: dict 
               for l in lines if len(l["text"].split()) / max(l["t1"] - l["t0"], 0.01) > max_wps(prof, l["speaker"]) + 0.3]
     out.append(check("no rushed lines", not rushed, "rushed: " + ", ".join(rushed) if rushed
                      else "every line at a natural pace"))
+    matched = [(l["speaker"], l["voice_match"]) for seg in plan["segments"] for l in seg["lines"]
+               if l.get("voice_match") is not None]
+    if matched:
+        from .voiceprint import MIN_MATCH
+        off = [f"{h} {m:.2f}" for h, m in matched if m < MIN_MATCH]
+        out.append(check("every host in his own voice", not off,
+                         "voice drifted: " + ", ".join(off) if off else
+                         f"{len(matched)} lines match their host's voice ({min(m for _, m in matched):.2f} or higher)"))
     lu = loudness(final_path)
     if lu["integrated_lufs"] is not None:
         out.append(check("loudness -14 LUFS", abs(lu["integrated_lufs"] + 14) <= 1.0,

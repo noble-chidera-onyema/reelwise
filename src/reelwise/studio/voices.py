@@ -29,6 +29,9 @@ from pathlib import Path
 
 import numpy as np
 
+REPO_DIR = Path(__file__).resolve().parents[3]
+PROFILES_DIR = REPO_DIR / "profiles"
+
 SR = 48000
 
 
@@ -37,6 +40,7 @@ class Spoken:
     path: str
     duration_s: float
     words: list = field(default_factory=list)   # [{"w": str, "start": s, "end": s}]
+    voice_match: float | None = None           # similarity to the host's reference read, when checked
 
 
 # --------------------------------------------------------------------------- audio helpers
@@ -408,16 +412,58 @@ class KokoroEngine(Engine):
 
 
 class ChatterboxEngine(Engine):
-    """Chatterbox (MIT). Free voice cloning from a 10-30 s sample of your own host.
-    Heavier than Kokoro: needs PyTorch and runs about real time on a laptop CPU."""
+    """Chatterbox (MIT). Free voice cloning from a 10-30 s sample.
+
+    Runs in the main environment when chatterbox-tts is installed there. Otherwise it uses
+    the separate .venv-clone environment (tools/setup_voice_clone.bat) through a worker
+    process that loads the model once and voices every line, so PyTorch never touches
+    the main app."""
     name = "chatterbox"
     _model = None
+    _worker = None
+    _worker_kind = "turbo"
 
-    def __init__(self, sample: str, exaggeration: float = 0.5, cfg_weight: float = 0.5):
-        self.sample, self.exaggeration, self.cfg_weight = sample, float(exaggeration), float(cfg_weight)
+    # Temperatures tried in turn when a line comes out in the wrong voice: lower is steadier.
+    RETRY_TEMPERATURES = (0.5, 0.35)
+
+    def __init__(self, sample: str, exaggeration: float = 0.5, cfg_weight: float = 0.5,
+                 model: str = "turbo", temperature: float = 0.8, reference: str | None = None):
+        self.kind, self.temperature = model, float(temperature)
+        self.sample = self._resolve(sample)
+        self.reference = self._resolve(reference) if reference else None
+        self.exaggeration, self.cfg_weight = float(exaggeration), float(cfg_weight)
+        self.last_match: float | None = None
+
+    @staticmethod
+    def _resolve(path: str) -> str:
+        p = Path(path)
+        if not p.is_absolute() and not p.exists():
+            p = PROFILES_DIR / path            # profile voices are stored relative to profiles/
+        return str(p)
 
     def config(self):
-        return {"sample": Path(self.sample).name, "exaggeration": self.exaggeration, "cfg": self.cfg_weight}
+        # Keyed on the sample's contents, so swapping a host's voice re-voices his lines.
+        p = Path(self.sample)
+        sample = hashlib.sha1(p.read_bytes()).hexdigest()[:12] if p.exists() else p.name
+        return {"sample": sample, "model": self.kind, "exaggeration": self.exaggeration,
+                "cfg": self.cfg_weight, "temperature": self.temperature,
+                "voice_check": bool(self.reference)}
+
+    @staticmethod
+    def clone_python() -> Path | None:
+        for rel in (".venv-clone/Scripts/python.exe", ".venv-clone/bin/python"):
+            p = REPO_DIR / rel
+            if p.exists():
+                return p
+        return None
+
+    @classmethod
+    def available(cls) -> bool:
+        try:
+            import chatterbox  # noqa: F401
+            return True
+        except ImportError:
+            return cls.clone_python() is not None
 
     @classmethod
     def model(cls):
@@ -428,19 +474,91 @@ class ChatterboxEngine(Engine):
             cls._model = ChatterboxTTS.from_pretrained(device=dev)
         return cls._model
 
-    def speak(self, text: str, out: Path) -> Spoken:
-        import torchaudio
-        m = self.model()
-        wav = m.generate(text, audio_prompt_path=self.sample, exaggeration=self.exaggeration,
-                         cfg_weight=self.cfg_weight)
+    @classmethod
+    def worker(cls):
+        if cls._worker is None or cls._worker.poll() is not None:
+            py = cls.clone_python()
+            if py is None:
+                raise RuntimeError("Chatterbox is not installed. Run tools\\setup_voice_clone.bat once.")
+            cls._worker = subprocess.Popen([str(py), str(REPO_DIR / "tools" / "clone_worker.py"), "--serve",
+                                            "--model", cls._worker_kind],
+                                           stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
+            reply = cls._reply(cls._worker)
+            if not reply.get("ready"):
+                raise RuntimeError(f"Chatterbox worker did not start: {reply}")
+        return cls._worker
+
+    @staticmethod
+    def _reply(proc) -> dict:
+        """Next JSON reply from the worker, skipping anything else a library printed."""
+        while True:
+            line = proc.stdout.readline()
+            if not line:
+                return {"ok": False, "error": "worker stopped"}
+            line = line.strip()
+            if line.startswith("{"):
+                try:
+                    return json.loads(line)
+                except ValueError:
+                    pass
+
+    def _generate(self, text: str, tmp: Path, temperature: float | None = None) -> None:
+        temperature = self.temperature if temperature is None else temperature
+        try:
+            import chatterbox  # noqa: F401
+            inline = True
+        except ImportError:
+            inline = False
+        if inline:
+            import torchaudio
+            m = self.model()
+            wav = m.generate(text, audio_prompt_path=self.sample, exaggeration=self.exaggeration,
+                             cfg_weight=self.cfg_weight)
+            torchaudio.save(str(tmp), wav, m.sr)
+            return
+        if ChatterboxEngine._worker is not None and ChatterboxEngine._worker_kind != self.kind:
+            ChatterboxEngine._worker.terminate()
+            ChatterboxEngine._worker = None
+        ChatterboxEngine._worker_kind = self.kind
+        w = self.worker()
+        w.stdin.write(json.dumps({"text": text, "sample": self.sample, "out": str(tmp),
+                                  "exaggeration": self.exaggeration, "cfg": self.cfg_weight,
+                                  "temperature": temperature}) + "\n")
+        w.stdin.flush()
+        reply = self._reply(w)
+        if not reply.get("ok"):
+            raise RuntimeError(f"Chatterbox failed on {text[:40]!r}: {reply.get('error', 'no reply')}")
+
+    def _take(self, text: str, out: Path, temperature: float) -> np.ndarray:
         tmp = out.with_suffix(".raw.wav")
-        torchaudio.save(str(tmp), wav, m.sr)
+        self._generate(text, tmp, temperature)
         _ffmpeg_to_wav(tmp, out)
         tmp.unlink(missing_ok=True)
         x = read_wav(out)
         a, b = speech_bounds(x)
         x = x[a:b]
         write_wav(out, x)
+        return x
+
+    def speak(self, text: str, out: Path) -> Spoken:
+        """Voice a line. With a reference read, check the take is really this host's voice and
+        voice it again, steadier, if it drifted; the best-matching take is kept."""
+        from . import voiceprint
+        check = bool(self.reference) and Path(self.reference).exists() and voiceprint.available()
+        best = None
+        for t in (self.temperature,) + (self.RETRY_TEMPERATURES if check else ()):
+            x = self._take(text, out, t)
+            if not check:
+                break
+            score = voiceprint.match(out, self.reference)
+            if best is None or score > best[0]:
+                best = (score, x)
+            if score >= voiceprint.MIN_MATCH:
+                break
+        if check:
+            self.last_match = round(best[0], 3)
+            x = best[1]
+            write_wav(out, x)
         return Spoken(str(out), round(len(x) / SR, 3), align_by_pauses(x, text))
 
 
@@ -449,7 +567,8 @@ def engine_from_config(cfg: dict) -> Engine:
     if kind == "kokoro":
         return KokoroEngine(cfg.get("voice", "bm_george"), float(cfg.get("speed", 1.0)), cfg.get("lang", "en-gb"))
     if kind == "chatterbox":
-        return ChatterboxEngine(cfg["sample"], float(cfg.get("exaggeration", 0.5)), float(cfg.get("cfg_weight", 0.5)))
+        return ChatterboxEngine(cfg["sample"], float(cfg.get("exaggeration", 0.5)), float(cfg.get("cfg_weight", 0.5)),
+                                cfg.get("model", "turbo"), float(cfg.get("temperature", 0.8)), cfg.get("reference"))
     if kind == "edge":
         return EdgeEngine(cfg["voice"], cfg.get("rate", "+0%"), cfg.get("pitch", "+0Hz"), cfg.get("volume", "+0%"))
     if kind == "elevenlabs":
@@ -505,6 +624,7 @@ def time_plan(plan: dict, engines: dict[str, Engine], audio_dir: str | Path,
                 sp = Spoken(**json.loads(meta.read_text()))
             else:
                 sp = eng.speak(ln["say"], out)
+                sp.voice_match = getattr(eng, "last_match", None)
                 # Captions show the real spelling; map spoken words back when counts match.
                 cap = ln["text"].split()
                 if len(cap) == len(sp.words):
@@ -536,6 +656,8 @@ def time_plan(plan: dict, engines: dict[str, Engine], audio_dir: str | Path,
             ln["audio"] = sp.path
             ln["start_s"] = round(t, 3)
             ln["duration_s"] = sp.duration_s
+            if sp.voice_match is not None:
+                ln["voice_match"] = sp.voice_match
             ln["words"] = sp.words
             t += sp.duration_s + gap
             first = False

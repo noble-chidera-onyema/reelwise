@@ -212,10 +212,10 @@ with st.expander("4. Host scene and TV", expanded=True):
 
 # --------------------------------------------------------------------------- 5 voices
 VOICE_HELP = {
-    "edge": "Free. Microsoft neural voices: the voices your episodes already use. Needs internet.",
+    "chatterbox": "Free, the default. Each host is a real human voice (LibriTTS-R, CC BY 4.0) cloned with "
+                  "Chatterbox Turbo on your computer. Install once with tools\\setup_voice_clone.bat.",
+    "edge": "Free. Microsoft Edge neural voices. Needs internet.",
     "kokoro": "Free. Kokoro-82M, runs offline on any computer. Downloads 350 MB once.",
-    "chatterbox": "Free. Clones each host from your own 10-30 s sample. Needs: pip install chatterbox-tts",
-    "edge": "Free. Microsoft Edge neural voices (the Luvvoice voices). Needs internet.",
     "elevenlabs": "Paid service. Optional.",
 }
 with st.expander("5. Host voices", expanded=True):
@@ -231,11 +231,11 @@ with st.expander("5. Host voices", expanded=True):
     for c in profile["characters"]:
         h = c["name"]
         default = c.get("voice", {"engine": "edge", "voice": "en-GB-RyanNeural"})
-        engines = ["edge", "chatterbox", "kokoro", "elevenlabs"]
+        engines = ["chatterbox", "edge", "kokoro", "elevenlabs"]
         a, b, d, e = st.columns([1, 1.3, 1, 1])
         eng = a.selectbox(f"{h} voice engine", engines, index=engines.index(default.get("engine", "kokoro"))
                           if default.get("engine") in engines else 0, key=f"eng{h}",
-                          help=" ".join(VOICE_HELP[k] for k in ("edge", "chatterbox", "kokoro")))
+                          help=" ".join(VOICE_HELP[k] for k in ("chatterbox", "edge", "kokoro")))
         if eng == "kokoro":
             opts = KOKORO_SHORTLIST
             v = c.get("voice_kokoro", {}).get("voice", "bm_george")
@@ -244,12 +244,19 @@ with st.expander("5. Host voices", expanded=True):
             lang = "en-gb" if voice.startswith("b") else "en-us"
             voices[h] = {"engine": "kokoro", "voice": voice, "speed": speed, "lang": lang}
         elif eng == "chatterbox":
-            sample = b.file_uploader(f"{h} voice sample", type=["wav", "mp3", "m4a"], key=f"cbs{h}")
+            locked = default if default.get("engine") == "chatterbox" else {}
+            sample = b.file_uploader(f"{h} voice sample (optional: replaces the locked voice)",
+                                     type=["wav", "mp3", "m4a"], key=f"cbs{h}")
             known = inputs / "voices" / f"{h.lower()}_sample.wav"
-            path = _save(sample, inputs / "voices", f"{h.lower()}_sample{Path(sample.name).suffix}") if sample else \
-                (str(known) if known.exists() else "")
-            ex = d.slider(f"{h} emotion", 0.25, 1.0, 0.5, 0.05, key=f"cbe{h}")
-            voices[h] = {"engine": "chatterbox", "sample": path, "exaggeration": ex}
+            if sample:
+                path = _save(sample, inputs / "voices", f"{h.lower()}_sample{Path(sample.name).suffix}")
+            elif locked.get("sample"):
+                path = locked["sample"]
+                b.caption(f"Locked voice: {c.get('voice_name', Path(locked['sample']).parent.name)}")
+            else:
+                path = str(known) if known.exists() else ""
+            voices[h] = {"engine": "chatterbox", "sample": path, "model": locked.get("model", "turbo"),
+                         "temperature": float(locked.get("temperature", 0.7))}
             if not path:
                 b.caption("Upload a sample, or cut one from an old episode below.")
         elif eng == "edge":

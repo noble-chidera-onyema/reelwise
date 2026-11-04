@@ -73,21 +73,27 @@ Ozzy (yellow) is the joker: at most one short funny line per video, without slow
 
 | Engine | What it is | Needs |
 |---|---|---|
-| **edge** (default) | Microsoft neural voices, the same voices your episodes use | internet; no account |
-| **chatterbox** | clones a host from a 10-30 s sample, with an emotion slider | `pip install -r requirements-voice-clone.txt` |
+| **chatterbox** (default) | Chatterbox Turbo (MIT): each host is a real human voice cloned on your computer | `tools\setup_voice_clone.bat` once (installs into its own `.venv-clone`, so the app is untouched) |
+| **edge** | Microsoft neural voices | internet; no account |
 | **kokoro** | offline voices that run on any computer | nothing; 350 MB model downloads once |
 
 ### The cast's voices
 
-Each voice is chosen by measurement: every candidate reads the same lines, and each read is scored on clarity (the words transcribed back exactly), expression (how far the pitch moves on the key line), the "a" test (the word "a" said as "uh", not "ay"), and distance from the other hosts (at least 4 semitones apart, or a clearly different accent). The old episodes failed the last two: all three hosts shared one voice, and it often said "a" like the letter.
+The Microsoft voices sounded dragged and coarse: the free service sends heavily compressed audio, Bex's and Ozzy's lines carried almost nothing above 4 kHz, and lines were slowed down when they came out fast. The cast is now three real human voices from LibriTTS-R (CC BY 4.0, see [CREDITS](CREDITS.md)), cloned with Chatterbox Turbo.
 
-| Host | Status | Voice |
+How they were chosen: 60 speakers were measured (pitch, brightness, expression, pace); the four best-matching male voices per host each read that host's line; every read was transcribed back and measured. All twelve came back word-perfect. Each was also scored on how faithfully it clones (how closely the cloned read matches the speaker's own recording), because a voice that clones loosely drifts from line to line. The winners are:
+
+| Host | Voice | Why |
 |---|---|---|
-| Ren | target saved, shortlist next | deep and warm, about 115 to 125 Hz; calm long-form pace 3.2 words a second, quicker short-form pace 3.9 |
-| Bex | target saved, shortlist next | brighter, about 169 Hz (at least 160), not Irish; 3.4 words a second |
-| Ozzy | **locked** | en-IE-ConnorNeural, rate +10%, pitch +6Hz: chosen from 36 candidates; clearest, the most expressive punchline (19.4 semitones), a natural 0.77 s beat before the punch, 4 of 4 on the "a" test |
+| Ren | LibriTTS-R 7021 | the crispest storyteller (no muffled top end), steady 3.3 words a second, the most life in the delivery |
+| Bex | LibriTTS-R 174 | the brightest and clearest of all twelve, quick at 3.7 words a second |
+| Ozzy | LibriTTS-R 2300 | clones faithfully (0.78, like Ren and Bex), clearly a different man from both, the second-widest expressive range in the library |
 
-The targets are in `profiles/worth_telling/voice_targets/` (measurements only: no audio from other creators is stored or cloned). A locked voice has its own folder, such as `profiles/worth_telling/voices/ozzy/`, with its settings, its measurements and reference clips of its test lines, and the profile points at it.
+Each locked voice has its own folder, `profiles/worth_telling/voices/<host>/`: the cloning sample, its transcript, a reference read of the host's line, and `voice.json` with the settings, the measurements and the licence credit. The profile points at those folders, so every episode uses the same three voices. The old Microsoft settings are kept in the profile as `voice_edge`.
+
+Every new line is checked against its host's reference read with a voiceprint (WeSpeaker, run with sherpa-onnx). Lines in the right voice score 0.73 to 0.94; a line that drifted into another voice scored 0.55. Anything under 0.70 is voiced again, steadier, and the episode check **every host in his own voice** reports the scores. This is how the first Ozzy (speaker 908) was caught: his clone matched his own recording at only 0.62, and "Worst car wash in Oregon" drifted into Ren's voice twice. Speaker 2300 replaced him.
+
+On a laptop CPU a line takes about 40 to 90 seconds to voice (the first one longer while the model loads), so narrating a 40-second episode takes roughly 10 to 15 minutes. Lines are cached, so changing pictures or captions does not voice them again.
 
 To clone your hosts from real recordings, open **Cut voice samples from an old episode**, tick who speaks on each line, save, and set that host's engine to chatterbox.
 
@@ -107,7 +113,7 @@ A 34 s episode renders in about 4 minutes on a 2-core machine, and faster on a t
 
 Captions, the stamp and the end card are drawn in Python with a bundled font (DejaVu Sans Bold; Arial Black when Windows has it), so they look the same on every computer and on Streamlit Cloud.
 
-A line spoken faster than 3.8 words a second sounds rushed. When that happens the line is voiced again, slower, before anything is cut, and the **no rushed lines** check blocks the download if one still slips through. On the Eugene demo, Ren's sign-off came back from the voice at 5.4 words a second and was fixed this way.
+A line spoken faster than 4.2 words a second sounds rushed (the reference story channels run at 3.2 to 3.9). When that happens the line is voiced again, slower, before anything is cut, and the **no rushed lines** check blocks the download if one still slips through. On the Eugene demo, Ren's sign-off came back from the voice at 5.4 words a second and was fixed this way.
 
 Story panels whose shape differs from the frame are shown whole, with a soft blurred copy filling the rest: a landscape panel in the phone shape becomes a band across the middle, and a 4:3 panel in the TV shape a column down the middle. The camera still pushes, pans and shows depth on them, but never crops more than about 2% from any edge, so labels and numbers at the edges stay in frame (a test checks this for every camera move). Their captions move into the band below the picture so they never cover the panel's own text.
 
